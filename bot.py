@@ -1,3 +1,4 @@
+import datetime
 import os
 from collections import defaultdict
 import re
@@ -130,7 +131,7 @@ async def on_guild_role_create(role):
     ):
       if entry.user and entry.user.id != OWNER_ID:
         await role.delete(
-            reason=f'{role.guild.name}: Sahibinden başkasının rol oluşturması yasaktır!'
+            reason=f'{channel.guild.name}: Sahibinden başkasının rol oluşturması yasaktır!'
         )
   except:
     pass
@@ -190,13 +191,13 @@ async def on_message(message):
   if any(pattern in cleaned for pattern in dangerous_patterns):
     try:
       await message.delete()
-      duration = discord.utils.utcnow() + discord.timedelta(seconds=10)
+      until = discord.utils.utcnow() + datetime.timedelta(minutes=1)
       await message.author.timeout(
-          duration, reason='DİABLOS: Zararlı / Phishing link paylaşımı.'
+          until, reason='DİABLOS: Zararlı / Phishing link paylaşımı.'
       )
       warn_msg = await message.channel.send(
           f'{message.author.mention}, ANAVİ BACİVİ SİKDİM YAVAŞ YAZ, o nə'
-          ' biçim linkdir elə?! 10 saniyəlik partlatdım səni!'
+          ' biçim linkdir elə?! 1 dəqiqəlik partlatdım səni!'
       )
       await warn_msg.delete(delay=5)
       return
@@ -215,8 +216,8 @@ async def on_message(message):
     except:
       pass
 
-  # Çok uzun mesaj koruması (150 karakterden fazla)
-  if len(content) > 150:
+  # Çok uzun mesaj koruması (180 karakterden fazla)
+  if len(content) > 180:
     try:
       await message.delete()
       long_text_warnings[message.author.id] += 1
@@ -224,13 +225,13 @@ async def on_message(message):
 
       if count >= 3:
         long_text_warnings[message.author.id] = 0
-        duration = discord.utils.utcnow() + discord.timedelta(seconds=10)
+        until = discord.utils.utcnow() + datetime.timedelta(minutes=1)
         await message.author.timeout(
-            duration, reason='Aşırı uzun mesaj spamı.'
+            until, reason='Aşırı uzun mesaj spamı.'
         )
         warn_msg = await message.channel.send(
             f'{message.author.mention}, ANAVİ BACİVİ SİKDİM, 3 DƏFƏDİR DASTAN'
-            ' YAZIRSAN! Aldın 10 saniyəlik timeout-u, indi dincəl!'
+            ' YAZIRSAN! Aldın 1 dəqiqəlik timeout-u, indi dincəl!'
         )
         await warn_msg.delete(delay=5)
       else:
@@ -245,12 +246,24 @@ async def on_message(message):
 
   # --- CAPS LOCK KORUMASI (Random gülüşlər istisna olundu) ---
   is_random_laugh = any(
-      x in cleaned for x in ['jsjs', 'sjsj', 'asj', 'ksj', 'djs', 'hsd', 'asd']
+      x in cleaned
+      for x in [
+          'jsjs',
+          'sjsj',
+          'asj',
+          'ksj',
+          'djs',
+          'hsd',
+          'asd',
+          'wjs',
+          'swj',
+          'jss',
+      ]
   )
   if (
       not is_random_laugh
-      and len(content) > 10
-      and sum(1 for c in content if c.isupper()) / len(content) > 0.7
+      and len(content) > 12
+      and sum(1 for c in content if c.isupper()) / len(content) > 0.8
   ):
     try:
       await message.delete()
@@ -259,11 +272,11 @@ async def on_message(message):
 
       if count >= 3:
         caps_warnings[message.author.id] = 0
-        duration = discord.utils.utcnow() + discord.timedelta(seconds=10)
-        await message.author.timeout(duration, reason='Caps Lock Spam.')
+        until = discord.utils.utcnow() + datetime.timedelta(minutes=1)
+        await message.author.timeout(until, reason='Caps Lock Spam.')
         warn_msg = await message.channel.send(
             f'{message.author.mention}, ANAVİ BACİVİ SİKDİM, QULAĞIMIZ'
-            ' PARTLADI! 3 dəfədir qışqırırsan, aldın timeout-u!'
+            ' PARTLADI! 3 dəfədir qışqırırsan, aldın 1 dəqiqəlik timeout-u!'
         )
         await warn_msg.delete(delay=5)
       else:
@@ -276,17 +289,15 @@ async def on_message(message):
     except:
       pass
 
-  # Link Koruması
-  if any(
-      domain in cleaned
-      for domain in [
-          'discord.gg/',
-          'http://',
-          'https://',
-          't.me/',
-          'discord.com/invite',
-      ]
-  ):
+  # --- REKLAM / LİNK KORUMASI (Ağıllı yoxlama) ---
+  link_patterns = [
+      'discord.gg/',
+      'discord.com/invite',
+      'http://',
+      'https://',
+      't.me/',
+  ]
+  if any(domain in content.lower() for domain in link_patterns):
     try:
       await message.delete()
       warn_msg = await message.channel.send(
@@ -298,7 +309,7 @@ async def on_message(message):
     except:
       pass
 
-  # Tekrar Mesaj Spam Koruması
+  # Tekrar Mesaj Spam Koruması (Aynı mesajı peş-peşe yazma)
   author_id = message.author.id
   current_time = time.time()
 
@@ -306,7 +317,7 @@ async def on_message(message):
     user_message_counts[author_id] = []
 
   last_msg = user_last_message.get(author_id, ('', 0))
-  if last_msg[0] == content and current_time - last_msg[1] < 4:
+  if last_msg[0] == content and current_time - last_msg[1] < 3:
     try:
       await message.delete()
       warn_msg = await message.channel.send(
@@ -320,13 +331,13 @@ async def on_message(message):
 
   user_last_message[author_id] = (content, current_time)
 
-  # Hızlı Mesaj Spamı
+  # Hızlı Mesaj Spamı (Çox sürətli mesaj atma - Yumşaldıldı)
   user_message_counts[author_id] = [
-      t for t in user_message_counts[author_id] if current_time - t < 3
+      t for t in user_message_counts[author_id] if current_time - t < 6
   ]
   user_message_counts[author_id].append(current_time)
 
-  if len(user_message_counts[author_id]) > 5:
+  if len(user_message_counts[author_id]) > 8:
     try:
       await message.delete()
       warn_msg = await message.channel.send(
@@ -356,32 +367,32 @@ async def yardim(ctx):
   )
   embed.add_field(
       name='🔗 Davet Linki',
-      value='`/url` - Sunucunun davet linkini gösterir.',
+      value='`!url` - Sunucunun davet linkini gösterir.',
       inline=False,
   )
   embed.add_field(
       name='🛡️ Anti-Spam',
-      value='`/antispam enable / disable` - Korumayı yönetir.',
+      value='`!antispam enable / disable` - Korumayı yönetir.',
       inline=False,
   )
   embed.add_field(
       name='🔒 Kanal Kilidi',
-      value='`/lock / unlock` - Kanalı yazışmaya kapatır/açar.',
+      value='`!lock / !unlock` - Kanalı yazışmaya kapatır/açar.',
       inline=False,
   )
   embed.add_field(
       name='🧹 Mesaj Temizliği',
-      value='`/sil [sayı]` - Belirtilen miktarda mesajı temizler.',
+      value='`!sil [sayı]` - Belirtilen miktarda mesajı temizler.',
       inline=False,
   )
   embed.add_field(
       name='📊 Sunucu Bilgisi',
-      value='`/serverbilgisi` - Sunucu hakkında bilgi verir.',
+      value='`!serverbilgisi` - Sunucu hakkında bilgi verir.',
       inline=False,
   )
   embed.add_field(
       name='🏓 Gecikme',
-      value='`/ping` - Botun gecikme hızını kontrol eder.',
+      value='`!ping` - Botun gecikme hızını kontrol eder.',
       inline=False,
   )
   embed.set_footer(text=f'{ctx.guild.name} • DİABLOS Security Systems')
@@ -476,7 +487,7 @@ async def sil_komanda(ctx, limit: int = 5):
 
 
 @bot.command(name='ping')
-async def ping(ctx.author.id != OWNER_ID):
+async def ping(ctx):
   if ctx.author.id != OWNER_ID:
     return
 
@@ -530,4 +541,4 @@ async def kick(ctx, member: discord.Member, *, reason='Belirtilmemiş'):
 if __name__ == '__main__':
   keep_alive()
   bot.run(os.environ.get('DISCORD_TOKEN'))
-        
+  
