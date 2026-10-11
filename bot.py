@@ -14,7 +14,7 @@ app = Flask('')
 
 @app.route('/')
 def home():
-  return 'DİABLOS Bot aktif!'
+  return 'ALLAHSİZ Bot aktivdir!'
 
 
 def run():
@@ -72,13 +72,13 @@ def clean_text(text):
 @bot.event
 async def on_ready():
   activity = discord.Activity(
-      type=discord.ActivityType.watching, name='DİABLOS Güvenlik 🛡️'
+      type=discord.ActivityType.watching, name='ALLAHSİZ Təhlükəsizlik 🛡️'
   )
   await bot.change_presence(activity=activity)
-  print(f'DİABLOS Güvenlik Botu tamamen aktif: {bot.user}')
+  print(f'ALLAHSİZ Təhlükəsizlik Botu tam aktivdir: {bot.user}')
 
 
-# --- SAHTE HESAP VE BOT KORUMASI ---
+# --- SAXTA HESAB VƏ BOT QORUNMASI ---
 @bot.event
 async def on_member_join(member):
   try:
@@ -87,13 +87,13 @@ async def on_member_join(member):
 
     if account_age < 86400 and not member.avatar:
       await member.kick(
-          reason='DİABLOS Anti-Bot: Şüpheli / Yeni oluşturulmuş sahte hesap.'
+          reason='ALLAHSİZ Anti-Bot: Şübhəli / Yeni yaradılmış saxta hesab.'
       )
   except:
     pass
 
 
-# --- 1. WEBHOOK KORUMASI ---
+# --- 1. WEBHOOK QORUNMASI ---
 @bot.event
 async def on_webhooks_update(channel):
   try:
@@ -101,13 +101,13 @@ async def on_webhooks_update(channel):
     for webhook in webhooks:
       if webhook.user and webhook.user.id != OWNER_ID:
         await webhook.delete(
-            reason=f'{channel.guild.name}: Sahibinden başkasının webhook oluşturması yasaktır!'
+            reason=f'{channel.guild.name}: Sahibindən başqasına webhook yaratmaq qadağandır!'
         )
   except:
     pass
 
 
-# --- 2. KANAL OLUŞTURMA KORUMASI ---
+# --- 2. KANAL YARADILMASI QORUNMASI ---
 @bot.event
 async def on_guild_channel_create(channel):
   try:
@@ -116,13 +116,13 @@ async def on_guild_channel_create(channel):
     ):
       if entry.user and entry.user.id != OWNER_ID:
         await channel.delete(
-            reason=f'{channel.guild.name}: Sahibinden başkasının kanal açması yasaktır!'
+            reason=f'{channel.guild.name}: Sahibindən başqasına kanal açmaq qadağandır!'
         )
   except:
     pass
 
 
-# --- 3. ROL OLUŞTURMA KORUMASI ---
+# --- 3. ROL YARADILMASI QORUNMASI ---
 @bot.event
 async def on_guild_role_create(role):
   try:
@@ -131,13 +131,13 @@ async def on_guild_role_create(role):
     ):
       if entry.user and entry.user.id != OWNER_ID:
         await role.delete(
-            reason=f'{channel.guild.name}: Sahibinden başkasının rol oluşturması yasaktır!'
+            reason=f'{role.guild.name}: Sahibindən başqasına rol açmaq qadağandır!'
         )
   except:
     pass
 
 
-# --- 4. ANTİ-NUKE KORUMASI ---
+# --- 4. ANTI-NUKE QORUNMASI ---
 @bot.event
 async def on_member_ban(guild, user):
   try:
@@ -157,7 +157,7 @@ async def on_member_ban(guild, user):
           if member:
             try:
               await member.ban(
-                  reason=f'{guild.name}: Anti-Nuke: İzinsiz toplu ban!'
+                  reason=f'{guild.name}: Anti-Nuke: İcazəsiz kütləvi ban!'
               )
             except:
               pass
@@ -186,14 +186,14 @@ async def on_message(message):
     await bot.process_commands(message)
     return
 
-  # Zararlı link ve dolandırıcılık koruması
+  # Zərərli link və fırıldaqçılıq qoruması
   dangerous_patterns = ['discord-gift', 'free-nitro', 'steam-nitro', 'dlcord.gg']
   if any(pattern in cleaned for pattern in dangerous_patterns):
     try:
       await message.delete()
       until = discord.utils.utcnow() + datetime.timedelta(minutes=1)
       await message.author.timeout(
-          until, reason='DİABLOS: Zararlı / Phishing link paylaşımı.'
+          until, reason='ALLAHSİZ: Zərərli / Phishing link paylaşımı.'
       )
       warn_msg = await message.channel.send(
           f'{message.author.mention}, ANAVİ BACİVİ SİKDİM YAVAŞ YAZ, o nə'
@@ -204,7 +204,7 @@ async def on_message(message):
     except:
       pass
 
-  # Toplu etiketleme koruması
+  # Kütləvi etiketləmə qoruması
   if message.mention_everyone or len(message.mentions) > 3:
     try:
       await message.delete()
@@ -216,7 +216,7 @@ async def on_message(message):
     except:
       pass
 
-  # Çok uzun mesaj koruması (180 karakterden fazla)
+  # Çox uzun mesaj qoruması (180 simvoldan çox)
   if len(content) > 180:
     try:
       await message.delete()
@@ -227,7 +227,7 @@ async def on_message(message):
         long_text_warnings[message.author.id] = 0
         until = discord.utils.utcnow() + datetime.timedelta(minutes=1)
         await message.author.timeout(
-            until, reason='Aşırı uzun mesaj spamı.'
+            until, reason='Həddindən artıq uzun mesaj spamı.'
         )
         warn_msg = await message.channel.send(
             f'{message.author.mention}, ANAVİ BACİVİ SİKDİM, 3 DƏFƏDİR DASTAN'
@@ -244,7 +244,7 @@ async def on_message(message):
     except:
       pass
 
-  # --- CAPS LOCK KORUMASI (Random gülüşlər istisna olundu) ---
+  # --- CAPS LOCK QORUMASI (4-6 hərflik qısa yazılar və randomlar istisna edildi) ---
   is_random_laugh = any(
       x in cleaned
       for x in [
@@ -260,10 +260,11 @@ async def on_message(message):
           'jss',
       ]
   )
+  # Yalnız mesaj uzunluğu 15 simvoldan böyükdürsə CAPS LOCK hesablansın
   if (
       not is_random_laugh
-      and len(content) > 12
-      and sum(1 for c in content if c.isupper()) / len(content) > 0.8
+      and len(content) > 15
+      and sum(1 for c in content if c.isupper()) / len(content) > 0.75
   ):
     try:
       await message.delete()
@@ -289,7 +290,7 @@ async def on_message(message):
     except:
       pass
 
-  # --- REKLAM / LİNK KORUMASI (Ağıllı yoxlama) ---
+  # --- REKLAM / LİNK QORUMASI ---
   link_patterns = [
       'discord.gg/',
       'discord.com/invite',
@@ -309,7 +310,7 @@ async def on_message(message):
     except:
       pass
 
-  # Tekrar Mesaj Spam Koruması (Aynı mesajı peş-peşe yazma)
+  # --- TƏKRAR MƏTN VƏ SİMVOLİK (RƏQƏMLİ) SPAM QORUMASI ---
   author_id = message.author.id
   current_time = time.time()
 
@@ -317,7 +318,10 @@ async def on_message(message):
     user_message_counts[author_id] = []
 
   last_msg = user_last_message.get(author_id, ('', 0))
-  if last_msg[0] == content and current_time - last_msg[1] < 3:
+  # Həm orijinal mətni, həm də təmizlənmiş (rəqəmsiz) mətni müqayisə edir
+  if (
+      last_msg[0] == content or last_msg[0] == cleaned
+  ) and current_time - last_msg[1] < 3:
     try:
       await message.delete()
       warn_msg = await message.channel.send(
@@ -329,15 +333,15 @@ async def on_message(message):
     except:
       pass
 
-  user_last_message[author_id] = (content, current_time)
+  user_last_message[author_id] = (cleaned if len(cleaned) > 2 else content, current_time)
 
-  # Hızlı Mesaj Spamı (Çox sürətli mesaj atma - Yumşaldıldı)
+  # Sürətli Mesaj Spamı
   user_message_counts[author_id] = [
-      t for t in user_message_counts[author_id] if current_time - t < 6
+      t for t in user_message_counts[author_id] if current_time - t < 5
   ]
   user_message_counts[author_id].append(current_time)
 
-  if len(user_message_counts[author_id]) > 8:
+  if len(user_message_counts[author_id]) > 6:
     try:
       await message.delete()
       warn_msg = await message.channel.send(
@@ -352,7 +356,7 @@ async def on_message(message):
   await bot.process_commands(message)
 
 
-# --- KOMUTLAR (YALNIZCA SAHİP İÇİN) ---
+# --- KOMANDALAR (YALNIZ SAHİB ÜÇÜN) ---
 
 
 @bot.command(name='yardim', aliases=['help'])
@@ -361,41 +365,41 @@ async def yardim(ctx):
     return
 
   embed = discord.Embed(
-      title='🛡️ DİABLOS Güvenlik Sistemi',
-      description='Sunucunun nizamını ve disiplinini korur.',
+      title='🛡️ ALLAHSİZ Təhlükəsizlik Sistemi',
+      description='Serverin nizamını və intizamını qoruyur.',
       color=0x2b2d31,
   )
   embed.add_field(
-      name='🔗 Davet Linki',
-      value='`!url` - Sunucunun davet linkini gösterir.',
+      name='🔗 Dəvət Linki',
+      value='`!url` - Serverin dəvət linkini göstərir.',
       inline=False,
   )
   embed.add_field(
       name='🛡️ Anti-Spam',
-      value='`!antispam enable / disable` - Korumayı yönetir.',
+      value='`!antispam enable / disable` - Mühafizəni idarə edir.',
       inline=False,
   )
   embed.add_field(
       name='🔒 Kanal Kilidi',
-      value='`!lock / !unlock` - Kanalı yazışmaya kapatır/açar.',
+      value='`!lock / !unlock` - Kanalı yazışmaya bağlayır/açır.',
       inline=False,
   )
   embed.add_field(
-      name='🧹 Mesaj Temizliği',
-      value='`!sil [sayı]` - Belirtilen miktarda mesajı temizler.',
+      name='🧹 Mesaj Təmizliyi',
+      value='`!sil [sayı]` - Göstərilən sayda mesajı təmizləyir.',
       inline=False,
   )
   embed.add_field(
-      name='📊 Sunucu Bilgisi',
-      value='`!serverbilgisi` - Sunucu hakkında bilgi verir.',
+      name='📊 Server Məlumatı',
+      value='`!serverbilgisi` - Server haqqında məlumat verir.',
       inline=False,
   )
   embed.add_field(
-      name='🏓 Gecikme',
-      value='`!ping` - Botun gecikme hızını kontrol eder.',
+      name='🏓 Gecikmə',
+      value='`!ping` - Botun gecikmə sürətini yoxlayır.',
       inline=False,
   )
-  embed.set_footer(text=f'{ctx.guild.name} • DİABLOS Security Systems')
+  embed.set_footer(text=f'{ctx.guild.name} • ALLAHSİZ Security Systems')
   await ctx.send(embed=embed)
 
 
@@ -407,13 +411,13 @@ async def antispam(ctx, status: str):
   guild_id = ctx.guild.id
   if status.lower() == 'enable':
     anti_spam_status[guild_id] = True
-    await ctx.send(f'✅ {ctx.guild.name}: Güvenlik sistemi etkinleştirildi.')
+    await ctx.send(f'✅ {ctx.guild.name}: Təhlükəsizlik sistemi aktivləşdirildi.')
   elif status.lower() == 'disable':
     anti_spam_status[guild_id] = False
-    await ctx.send(f'⚠️ {ctx.guild.name}: Güvenlik sistemi devre dışı bırakıldı.')
+    await ctx.send(f'⚠️ {ctx.guild.name}: Təhlükəsizlik sistemi söndürüldü.')
   else:
     await ctx.send(
-        '❌ Kullanım şekli: `!antispam enable` veya `!antispam disable`'
+        '❌ İstifadə qaydası: `!antispam enable` və ya `!antispam disable`'
     )
 
 
@@ -426,7 +430,7 @@ async def lock(ctx):
     await ctx.message.delete()
     await ctx.channel.set_permissions(ctx.guild.default_role, send_messages=False)
     await ctx.send(
-        f'🔒 Bu kanal ({ctx.guild.name}) güvenlik protokolü ile kilitlendi.',
+        f'🔒 Bu kanal ({ctx.guild.name}) təhlükəsizlik protokolu ilə kilidləndi.',
         delete_after=5,
     )
   except:
@@ -442,8 +446,8 @@ async def unlock(ctx):
     await ctx.message.delete()
     await ctx.channel.set_permissions(ctx.guild.default_role, send_messages=True)
     await ctx.send(
-        f'🔓 Kanalın kilidi açıldı, ({ctx.guild.name}) sakinleri yeniden'
-        ' yazabilirsiniz.',
+        f'🔓 Kanalın kilidi açıldı, ({ctx.guild.name}) sakinləri yenidən'
+        ' yaza bilərsiniz.',
         delete_after=5,
     )
   except:
@@ -459,16 +463,16 @@ async def server_url(ctx):
     try:
       vanity = await ctx.guild.vanity_invite()
       await ctx.send(
-          f'🔗 {ctx.guild.name} Davet Linki:'
-          f' **discord.gg/{vanity.code}** (Kullanım: {vanity.uses})'
+          f'🔗 {ctx.guild.name} Dəvət Linki:'
+          f' **discord.gg/{vanity.code}** (İstifadə: {vanity.uses})'
       )
     except:
       await ctx.send(
-          f'🔗 {ctx.guild.name} Davet Linki:'
+          f'🔗 {ctx.guild.name} Dəvət Linki:'
           f' **discord.gg/{ctx.guild.vanity_url_code}**'
       )
   else:
-    await ctx.send(f'❌ {ctx.guild.name} Sunucusunun özel (vanity) linki yok.')
+    await ctx.send(f'❌ {ctx.guild.name} Serverinin xüsusi (vanity) linki yoxdur.')
 
 
 @bot.command(name='sil', aliases=['temizle'])
@@ -480,7 +484,7 @@ async def sil_komanda(ctx, limit: int = 5):
     await ctx.message.delete()
     deleted = await ctx.channel.purge(limit=limit)
     await ctx.send(
-        f'🧹 **{len(deleted)}** adet mesaj temizlendi.', delete_after=1
+        f'🧹 **{len(deleted)}** ədəd mesaj təmizləndi.', delete_after=1
     )
   except:
     pass
@@ -492,7 +496,7 @@ async def ping(ctx):
     return
 
   latency = round(bot.latency * 1000)
-  await ctx.send(f'🏓 Pong! Botun gecikme hızı: **{latency}ms**')
+  await ctx.send(f'🏓 Pong! Botun gecikmə sürəti: **{latency}ms**')
 
 
 @bot.command(name='serverbilgisi')
@@ -501,11 +505,11 @@ async def serverbilgisi(ctx):
     return
 
   guild = ctx.guild
-  embed = discord.Embed(title=f'📊 {guild.name} - Sunucu Bilgisi', color=0x2b2d31)
-  embed.add_field(name='👑 Sunucu Sahibi', value=f'{guild.owner}', inline=True)
-  embed.add_field(name='👥 Üye Sayısı', value=guild.member_count, inline=True)
+  embed = discord.Embed(title=f'📊 {guild.name} - Server Məlumatı', color=0x2b2d31)
+  embed.add_field(name='👑 Server Sahib(ə)si', value=f'{guild.owner}', inline=True)
+  embed.add_field(name='👥 Üzv Sayı', value=guild.member_count, inline=True)
   embed.add_field(
-      name='📅 Oluşturulma Tarihi',
+      name='📅 Yaradılma Tarixi',
       value=guild.created_at.strftime('%d.%m.%Y'),
       inline=True,
   )
@@ -513,27 +517,27 @@ async def serverbilgisi(ctx):
 
 
 @bot.command(name='ban')
-async def ban(ctx, member: discord.Member, *, reason='Belirtilmemiş'):
+async def ban(ctx, member: discord.Member, *, reason='Göstərilməyib'):
   if ctx.author.id != OWNER_ID:
     return
 
   try:
     await member.ban(reason=reason)
     await ctx.send(
-        f'🔨 **{member}** sunucudan uzaklaştırıldı. Sebep: **{reason}**'
+        f'🔨 **{member}** serverdən uzaqlaşdırıldı. Səbəb: **{reason}**'
     )
   except:
     pass
 
 
 @bot.command(name='kick')
-async def kick(ctx, member: discord.Member, *, reason='Belirtilmemiş'):
+async def kick(ctx, member: discord.Member, *, reason='Göstərilməyib'):
   if ctx.author.id != OWNER_ID:
     return
 
   try:
     await member.kick(reason=reason)
-    await ctx.send(f'👢 **{member}** sunucudan atıldı. Sebep: **{reason}**')
+    await ctx.send(f'👢 **{member}** serverdən qovuldu. Səbəb: **{reason}**')
   except:
     pass
 
@@ -541,4 +545,4 @@ async def kick(ctx, member: discord.Member, *, reason='Belirtilmemiş'):
 if __name__ == '__main__':
   keep_alive()
   bot.run(os.environ.get('DISCORD_TOKEN'))
-  
+    
