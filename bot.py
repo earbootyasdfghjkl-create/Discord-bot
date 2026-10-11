@@ -1,3 +1,4 @@
+
 import datetime
 import os
 from collections import defaultdict
@@ -44,8 +45,10 @@ user_message_counts = defaultdict(list)
 user_last_message = {}
 ban_action_counts = defaultdict(list)
 
+# XƏBƏRDARLIQ SAYĞACLARI
 caps_warnings = defaultdict(int)
 long_text_warnings = defaultdict(int)
+repeat_warnings = defaultdict(int)
 
 
 def clean_text(text):
@@ -201,8 +204,8 @@ async def on_message(message):
       )
       await warn_msg.delete(delay=5)
       return
-    except:
-      pass
+    except Exception as e:
+      print(f'Timeout error: {e}')
 
   # Kütləvi etiketləmə qoruması
   if message.mention_everyone or len(message.mentions) > 3:
@@ -241,10 +244,10 @@ async def on_message(message):
         )
         await warn_msg.delete(delay=5)
       return
-    except:
-      pass
+    except Exception as e:
+      print(f'Timeout error: {e}')
 
-  # --- CAPS LOCK QORUMASI (4-6 hərflik qısa yazılar və randomlar istisna edildi) ---
+  # --- CAPS LOCK QORUMASI ---
   is_random_laugh = any(
       x in cleaned
       for x in [
@@ -260,7 +263,6 @@ async def on_message(message):
           'jss',
       ]
   )
-  # Yalnız mesaj uzunluğu 15 simvoldan böyükdürsə CAPS LOCK hesablansın
   if (
       not is_random_laugh
       and len(content) > 15
@@ -287,8 +289,8 @@ async def on_message(message):
         )
         await warn_msg.delete(delay=5)
       return
-    except:
-      pass
+    except Exception as e:
+      print(f'Timeout error: {e}')
 
   # --- REKLAM / LİNK QORUMASI ---
   link_patterns = [
@@ -310,7 +312,7 @@ async def on_message(message):
     except:
       pass
 
-  # --- TƏKRAR MƏTN VƏ SİMVOLİK (RƏQƏMLİ) SPAM QORUMASI ---
+  # --- TƏKRAR MƏTN SPAM QORUMASI (3-cü dəfədə Timeout əlavə olundu!) ---
   author_id = message.author.id
   current_time = time.time()
 
@@ -318,22 +320,38 @@ async def on_message(message):
     user_message_counts[author_id] = []
 
   last_msg = user_last_message.get(author_id, ('', 0))
-  # Həm orijinal mətni, həm də təmizlənmiş (rəqəmsiz) mətni müqayisə edir
+
   if (
       last_msg[0] == content or last_msg[0] == cleaned
-  ) and current_time - last_msg[1] < 3:
+  ) and current_time - last_msg[1] < 4:
     try:
       await message.delete()
-      warn_msg = await message.channel.send(
-          f'{message.author.mention}, ANAVİ BACİVİ SİKDİM, EYNİ ŞEYİ'
-          ' TƏKRAR-TƏKRAR ATMA!'
-      )
-      await warn_msg.delete(delay=5)
-      return
-    except:
-      pass
+      repeat_warnings[author_id] += 1
+      count = repeat_warnings[author_id]
 
-  user_last_message[author_id] = (cleaned if len(cleaned) > 2 else content, current_time)
+      if count >= 3:
+        repeat_warnings[author_id] = 0
+        until = discord.utils.utcnow() + datetime.timedelta(minutes=1)
+        await message.author.timeout(until, reason='Tekrar Mesaj Spamı.')
+        warn_msg = await message.channel.send(
+            f'{message.author.mention}, ANAVİ BACİVİ SİKDİM, 3 DƏFƏDİR EYNİ ŞEYİ'
+            ' ATIRSAN! Aldın 1 dəqiqəlik timeout-u!'
+        )
+        await warn_msg.delete(delay=5)
+      else:
+        warn_msg = await message.channel.send(
+            f'{message.author.mention}, ANAVİ BACİVİ SİKDİM, EYNİ ŞEYİ'
+            f' TƏKRAR-TƏKRAR ATMA! Uyarı: ({count}/3)'
+        )
+        await warn_msg.delete(delay=5)
+      return
+    except Exception as e:
+      print(f'Timeout error: {e}')
+
+  user_last_message[author_id] = (
+      cleaned if len(cleaned) > 2 else content,
+      current_time,
+  )
 
   # Sürətli Mesaj Spamı
   user_message_counts[author_id] = [
@@ -496,7 +514,7 @@ async def ping(ctx):
     return
 
   latency = round(bot.latency * 1000)
-  await ctx.send(f'🏓 Pong! Botun gecikmə sürəti: **{latency}ms**')
+  await ctx.send(f'📿 Pong! Botun gecikmə sürəti: **{latency}ms**')
 
 
 @bot.command(name='serverbilgisi')
