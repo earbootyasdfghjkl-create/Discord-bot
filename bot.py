@@ -1,4 +1,5 @@
 
+
 import datetime
 import os
 from collections import defaultdict
@@ -34,11 +35,13 @@ intents.members = True
 intents.webhooks = True
 intents.guilds = True
 intents.moderation = True
+intents.voice_states = True
 
 bot = commands.Bot(command_prefix='!', help_command=None, intents=intents)
 
-# Sahip ID-si
+# Sahib ID-si və 7/24 Səs Kanalı ID-si
 OWNER_ID = 641014966312501259
+VOICE_CHANNEL_ID = 1507834544756101302
 
 anti_spam_status = {}
 user_message_counts = defaultdict(list)
@@ -72,6 +75,7 @@ def clean_text(text):
   return text.replace(' ', '')
 
 
+# --- BOT HAZIR OLDUQDA VƏ SƏSƏ QOŞULDUQDA ---
 @bot.event
 async def on_ready():
   activity = discord.Activity(
@@ -79,6 +83,28 @@ async def on_ready():
   )
   await bot.change_presence(activity=activity)
   print(f'ALLAHSİZ Təhlükəsizlik Botu tam aktivdir: {bot.user}')
+
+  # 7/24 Səs Kanalına Qoşulma
+  try:
+    channel = bot.get_channel(VOICE_CHANNEL_ID)
+    if channel and isinstance(channel, discord.VoiceChannel):
+      await channel.connect(reconnect=True, self_deaf=True)
+      print(f'Bot {channel.name} səs kanalına 7/24 daxil oldu!')
+  except Exception as e:
+    print(f'Səs kanalına qoşularkən xəta baş verdi: {e}')
+
+
+# --- ƏGƏR SƏS KANALINDAN ÇIXARILARSA AVTOMATİK GERİ QOŞULMA ---
+@bot.event
+async def on_voice_state_update(member, before, after):
+  if member.id == bot.user.id and after.channel is None:
+    try:
+      channel = bot.get_channel(VOICE_CHANNEL_ID)
+      if channel and isinstance(channel, discord.VoiceChannel):
+        await channel.connect(reconnect=True, self_deaf=True)
+        print('Bot səs kanalına yenidən avtomatik daxil oldu!')
+    except Exception as e:
+      print(f'Səsə avtomatik geri qoşulma xətası: {e}')
 
 
 # --- SAXTA HESAB VƏ BOT QORUNMASI ---
@@ -100,17 +126,18 @@ async def on_member_join(member):
 @bot.event
 async def on_webhooks_update(channel):
   try:
-    webhooks = await channel.webhooks()
-    for webhook in webhooks:
-      if webhook.user and webhook.user.id != OWNER_ID:
-        await webhook.delete(
-            reason=f'{channel.guild.name}: Sahibindən başqasına webhook yaratmaq qadağandır!'
-        )
+    async for entry in channel.guild.audit_logs(
+        limit=1, action=discord.AuditLogAction.webhook_create
+    ):
+      if entry.user and entry.user.id != OWNER_ID:
+        member = channel.guild.get_member(entry.user.id)
+        if member and not member.guild_permissions.administrator:
+          pass
   except:
     pass
 
 
-# --- 2. KANAL YARADILMASI QORUNMASI ---
+# --- 2. KANAL YARADILMASI QORUNMASI (Adminlər və Sahib yarada bilər) ---
 @bot.event
 async def on_guild_channel_create(channel):
   try:
@@ -118,14 +145,16 @@ async def on_guild_channel_create(channel):
         limit=1, action=discord.AuditLogAction.channel_create
     ):
       if entry.user and entry.user.id != OWNER_ID:
-        await channel.delete(
-            reason=f'{channel.guild.name}: Sahibindən başqasına kanal açmaq qadağandır!'
-        )
+        member = channel.guild.get_member(entry.user.id)
+        if member and not member.guild_permissions.administrator:
+          await channel.delete(
+              reason=f'{channel.guild.name}: Administrator və ya Sahibdən başqasına kanal açmaq qadağandır!'
+          )
   except:
     pass
 
 
-# --- 3. ROL YARADILMASI QORUNMASI ---
+# --- 3. ROL YARADILMASI QORUNMASI (Adminlər və Sahib yarada bilər) ---
 @bot.event
 async def on_guild_role_create(role):
   try:
@@ -133,9 +162,11 @@ async def on_guild_role_create(role):
         limit=1, action=discord.AuditLogAction.role_create
     ):
       if entry.user and entry.user.id != OWNER_ID:
-        await role.delete(
-            reason=f'{role.guild.name}: Sahibindən başqasına rol açmaq qadağandır!'
-        )
+        member = role.guild.get_member(entry.user.id)
+        if member and not member.guild_permissions.administrator:
+          await role.delete(
+              reason=f'{role.guild.name}: Administrator və ya Sahibdən başqasına rol açmaq qadağandır!'
+          )
   except:
     pass
 
@@ -189,6 +220,20 @@ async def on_message(message):
     await bot.process_commands(message)
     return
 
+  # --- HƏDDİNDƏN ARTIQ EMOJİ / SPAM QORUMASI ---
+  emoji_count = len(re.findall(r'<a?:\w+:\d+>', content))
+  if emoji_count > 5:
+    try:
+      await message.delete()
+      warn_msg = await message.channel.send(
+          f'{message.author.mention}, ANAVİ BACİVİ SİKDİM, emoji spamı'
+          ' etmək qadağandır!'
+      )
+      await warn_msg.delete(delay=5)
+      return
+    except:
+      pass
+
   # Zərərli link və fırıldaqçılıq qoruması
   dangerous_patterns = ['discord-gift', 'free-nitro', 'steam-nitro', 'dlcord.gg']
   if any(pattern in cleaned for pattern in dangerous_patterns):
@@ -234,7 +279,7 @@ async def on_message(message):
         )
         warn_msg = await message.channel.send(
             f'{message.author.mention}, ANAVİ BACİVİ SİKDİM, 3 DƏFƏDİR DASTAN'
-            ' YAZIRSAN! Aldın 1 dəqiqəlik timeout-u, indi dincəl!'
+            ' YAZIRSAN! Aldın 1 dəqiqəlik timeout-u!'
         )
         await warn_msg.delete(delay=5)
       else:
@@ -279,7 +324,7 @@ async def on_message(message):
         await message.author.timeout(until, reason='Caps Lock Spam.')
         warn_msg = await message.channel.send(
             f'{message.author.mention}, ANAVİ BACİVİ SİKDİM, QULAĞIMIZ'
-            ' PARTLADI! 3 dəfədir qışqırırsan, aldın 1 dəqiqəlik timeout-u!'
+            ' PARTLADI! 3 dəfədir qışqırırsan, aldın timeout!'
         )
         await warn_msg.delete(delay=5)
       else:
@@ -312,7 +357,7 @@ async def on_message(message):
     except:
       pass
 
-  # --- TƏKRAR MƏTN SPAM QORUMASI (3-cü dəfədə Timeout əlavə olundu!) ---
+  # --- TƏKRAR MƏTN SPAM QORUMASI ---
   author_id = message.author.id
   current_time = time.time()
 
@@ -335,7 +380,7 @@ async def on_message(message):
         await message.author.timeout(until, reason='Tekrar Mesaj Spamı.')
         warn_msg = await message.channel.send(
             f'{message.author.mention}, ANAVİ BACİVİ SİKDİM, 3 DƏFƏDİR EYNİ ŞEYİ'
-            ' ATIRSAN! Aldın 1 dəqiqəlik timeout-u!'
+            ' ATIRSAN! Aldın 1 dəqiqəlik timeout!'
         )
         await warn_msg.delete(delay=5)
       else:
@@ -374,12 +419,15 @@ async def on_message(message):
   await bot.process_commands(message)
 
 
-# --- KOMANDALAR (YALNIZ SAHİB ÜÇÜN) ---
+# --- KOMANDALAR ---
 
 
 @bot.command(name='yardim', aliases=['help'])
 async def yardim(ctx):
-  if ctx.author.id != OWNER_ID:
+  if (
+      ctx.author.id != OWNER_ID
+      and not ctx.author.guild_permissions.administrator
+  ):
     return
 
   embed = discord.Embed(
@@ -403,8 +451,18 @@ async def yardim(ctx):
       inline=False,
   )
   embed.add_field(
-      name='🧹 Mesaj Təmizliyi',
+      name='🧹 Ümumi Təmizlik',
       value='`!sil [sayı]` - Göstərilən sayda mesajı təmizləyir.',
+      inline=False,
+  )
+  embed.add_field(
+      name='👤 İstifadəçiyə Özəl Təmizlik',
+      value='`!siluser @istifadəçi [say]` - Müəyyən üzvün mesajlarını təmizləyir.',
+      inline=False,
+  )
+  embed.add_field(
+      name='⏱️ Yavaş Rejim / Slowmode',
+      value='`!slowmode [saniyə]` - Kanala saniyə məhdudiyyəti qoyur.',
       inline=False,
   )
   embed.add_field(
@@ -423,7 +481,10 @@ async def yardim(ctx):
 
 @bot.command(name='antispam')
 async def antispam(ctx, status: str):
-  if ctx.author.id != OWNER_ID:
+  if (
+      ctx.author.id != OWNER_ID
+      and not ctx.author.guild_permissions.administrator
+  ):
     return
 
   guild_id = ctx.guild.id
@@ -441,7 +502,10 @@ async def antispam(ctx, status: str):
 
 @bot.command(name='lock')
 async def lock(ctx):
-  if ctx.author.id != OWNER_ID:
+  if (
+      ctx.author.id != OWNER_ID
+      and not ctx.author.guild_permissions.administrator
+  ):
     return
 
   try:
@@ -457,7 +521,10 @@ async def lock(ctx):
 
 @bot.command(name='unlock')
 async def unlock(ctx):
-  if ctx.author.id != OWNER_ID:
+  if (
+      ctx.author.id != OWNER_ID
+      and not ctx.author.guild_permissions.administrator
+  ):
     return
 
   try:
@@ -474,7 +541,10 @@ async def unlock(ctx):
 
 @bot.command(name='url')
 async def server_url(ctx):
-  if ctx.author.id != OWNER_ID:
+  if (
+      ctx.author.id != OWNER_ID
+      and not ctx.author.guild_permissions.administrator
+  ):
     return
 
   if ctx.guild.vanity_url_code:
@@ -495,7 +565,10 @@ async def server_url(ctx):
 
 @bot.command(name='sil', aliases=['temizle'])
 async def sil_komanda(ctx, limit: int = 5):
-  if ctx.author.id != OWNER_ID:
+  if (
+      ctx.author.id != OWNER_ID
+      and not ctx.author.guild_permissions.administrator
+  ):
     return
 
   try:
@@ -508,18 +581,68 @@ async def sil_komanda(ctx, limit: int = 5):
     pass
 
 
+@bot.command(name='siluser')
+async def siluser(ctx, member: discord.Member, limit: int = 10):
+  if (
+      ctx.author.id != OWNER_ID
+      and not ctx.author.guild_permissions.administrator
+  ):
+    return
+
+  try:
+    await ctx.message.delete()
+    deleted = await ctx.channel.purge(
+        limit=limit * 5, check=lambda m: m.author.id == member.id
+    )
+    await ctx.send(
+        f'🧹 **{member.mention}** istifadəçisinin **{len(deleted)}** ədəd'
+        ' mesajı təmizləndi.',
+        delete_after=3,
+    )
+  except:
+    await ctx.send('❌ Mesajlar silinərkən xəta baş verdi!', delete_after=3)
+
+
+@bot.command(name='slowmode', aliases=['yavas'])
+async def slowmode(ctx, seconds: int = 0):
+  if (
+      ctx.author.id != OWNER_ID
+      and not ctx.author.guild_permissions.administrator
+  ):
+    return
+
+  try:
+    await ctx.message.delete()
+    await ctx.channel.edit(slowmode_delay=seconds)
+    if seconds == 0:
+      await ctx.send('⏱️ Bu kanalda yavaş rejim **söndürüldü**.', delete_after=5)
+    else:
+      await ctx.send(
+          f'⏱️ Bu kanalda yavaş rejim **{seconds} saniyə** olaraq tənzimləndi.',
+          delete_after=5,
+      )
+  except:
+    await ctx.send('❌ Yavaş rejim tətbiq edilərkən xəta baş verdi!', delete_after=5)
+
+
 @bot.command(name='ping')
 async def ping(ctx):
-  if ctx.author.id != OWNER_ID:
+  if (
+      ctx.author.id != OWNER_ID
+      and not ctx.author.guild_permissions.administrator
+  ):
     return
 
   latency = round(bot.latency * 1000)
-  await ctx.send(f'📿 Pong! Botun gecikmə sürəti: **{latency}ms**')
+  await ctx.send(f'🏓 Pong! Botun gecikmə sürəti: **{latency}ms**')
 
 
 @bot.command(name='serverbilgisi')
 async def serverbilgisi(ctx):
-  if ctx.author.id != OWNER_ID:
+  if (
+      ctx.author.id != OWNER_ID
+      and not ctx.author.guild_permissions.administrator
+  ):
     return
 
   guild = ctx.guild
@@ -536,7 +659,10 @@ async def serverbilgisi(ctx):
 
 @bot.command(name='ban')
 async def ban(ctx, member: discord.Member, *, reason='Göstərilməyib'):
-  if ctx.author.id != OWNER_ID:
+  if (
+      ctx.author.id != OWNER_ID
+      and not ctx.author.guild_permissions.administrator
+  ):
     return
 
   try:
@@ -550,7 +676,10 @@ async def ban(ctx, member: discord.Member, *, reason='Göstərilməyib'):
 
 @bot.command(name='kick')
 async def kick(ctx, member: discord.Member, *, reason='Göstərilməyib'):
-  if ctx.author.id != OWNER_ID:
+  if (
+      ctx.author.id != OWNER_ID
+      and not ctx.author.guild_permissions.administrator
+  ):
     return
 
   try:
@@ -563,4 +692,4 @@ async def kick(ctx, member: discord.Member, *, reason='Göstərilməyib'):
 if __name__ == '__main__':
   keep_alive()
   bot.run(os.environ.get('DISCORD_TOKEN'))
-    
+      
