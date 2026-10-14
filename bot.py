@@ -32,8 +32,7 @@ intents.message_content = True
 intents.members = True
 intents.webhooks = True
 intents.guilds = True
-intents.moderation = True
-intents.voice_states = True
+intents.voice_states = True  # moderation sətri silindi, xəta aradan qalxdı
 
 bot = commands.Bot(command_prefix='!', help_command=None, intents=intents)
 
@@ -73,7 +72,7 @@ def clean_text(text):
   return text.replace(' ', '')
 
 
-# --- BOT HAZIR OLDUQDA VƏ SƏSƏ QOŞULDA ---
+# --- BOT HAZIR OLDUQDA VƏ SƏSƏ QOŞULMA ---
 @bot.event
 async def on_ready():
   activity = discord.Activity(
@@ -82,7 +81,6 @@ async def on_ready():
   await bot.change_presence(activity=activity)
   print(f'ALLAHSİZ Təhlükəsizlik Botu tam aktivdir: {bot.user}')
 
-  # Əgər bot artıq heç bir səsdə yoxdursa, qoşulsun (Hər dəfə səsdən çıxıb girməsin)
   if not bot.voice_clients:
     try:
       channel = bot.get_channel(VOICE_CHANNEL_ID)
@@ -218,51 +216,48 @@ async def on_message(message):
     await bot.process_commands(message)
     return
 
-  # --- HƏDDİNDƏN ARTIQ EMOJİ / SPAM QORUMASI ---
+  # --- EMOJİ SPAM ---
   emoji_count = len(re.findall(r'<a?:\w+:\d+>', content))
   if emoji_count > 6:
     try:
       await message.delete()
       warn_msg = await message.channel.send(
-          f'{message.author.mention}, ANAVİ BACİVİ SİKDİM, emoji spamı'
-          ' etmək qadağandır!'
+          f'{message.author.mention}, emoji spamı etmək qadağandır!'
       )
       await warn_msg.delete(delay=5)
       return
     except:
       pass
 
-  # Zərərli link və fırıldaqçılıq qoruması
+  # Zərərli linklər
   dangerous_patterns = ['discord-gift', 'free-nitro', 'steam-nitro', 'dlcord.gg']
   if any(pattern in cleaned for pattern in dangerous_patterns):
     try:
       await message.delete()
       until = discord.utils.utcnow() + datetime.timedelta(minutes=1)
-      await message.author.timeout(
-          until, reason='ALLAHSİZ: Zərərli / Phishing link paylaşımı.'
-      )
+      await message.author.timeout(until, reason='Zərərli link paylaşımı.')
       warn_msg = await message.channel.send(
-          f'{message.author.mention}, ANAVİ BACİVİ SİKDİM YAVAŞ YAZ, o nə'
-          ' biçim linkdir elə?! 1 dəqiqəlik partlatdım səni!'
+          f'{message.author.mention}, şübhəli link paylaşdığı üçün 1 dəqiqəlik'
+          ' timeout aldı!'
       )
       await warn_msg.delete(delay=5)
       return
     except:
       pass
 
-  # Kütləvi etiketləmə qoruması
+  # Kütləvi etiketləmə
   if message.mention_everyone or len(message.mentions) > 4:
     try:
       await message.delete()
       warn_msg = await message.channel.send(
-          f'{message.author.mention}, ANAVİ BACİVİ SİKDİM, KİMİ ETİKETLƏRSƏN'
+          f'{message.author.mention}, kütləvi etiketləmə qadağandır!'
       )
       await warn_msg.delete(delay=5)
       return
     except:
       pass
 
-  # Çox uzun mesaj qoruması (200 simvoldan çox)
+  # Çox uzun mesaj
   if len(content) > 200:
     try:
       await message.delete()
@@ -272,25 +267,22 @@ async def on_message(message):
       if count >= 3:
         long_text_warnings[message.author.id] = 0
         until = discord.utils.utcnow() + datetime.timedelta(minutes=1)
-        await message.author.timeout(
-            until, reason='Həddindən artıq uzun mesaj spamı.'
-        )
+        await message.author.timeout(until, reason='Uzun mesaj spamı.')
         warn_msg = await message.channel.send(
-            f'{message.author.mention}, ANAVİ BACİVİ SİKDİM, 3 DƏFƏDİR DASTAN'
-            ' YAZIRSAN! Aldın 1 dəqiqəlik timeout-u!'
+            f'{message.author.mention}, 3 dəfədir dastan yazırsan, aldın 1'
+            ' dəqiqəlik timeout!'
         )
-        await warn_msg.delete(delay=5)
       else:
         warn_msg = await message.channel.send(
-            f'{message.author.mention}, ANAVİ BACİVİ SİKDİM, BURADA ROMAN'
-            f' YAZMIRIK! Uyarı: ({count}/3)'
+            f'{message.author.mention}, burada roman yazmırıq! Uyarı:'
+            f' ({count}/3)'
         )
-        await warn_msg.delete(delay=5)
+      await warn_msg.delete(delay=5)
       return
     except:
       pass
 
-  # --- CAPS LOCK QORUMASI ---
+  # --- CAPS LOCK ---
   is_random_laugh = any(
       x in cleaned
       for x in [
@@ -321,21 +313,20 @@ async def on_message(message):
         until = discord.utils.utcnow() + datetime.timedelta(minutes=1)
         await message.author.timeout(until, reason='Caps Lock Spam.')
         warn_msg = await message.channel.send(
-            f'{message.author.mention}, ANAVİ BACİVİ SİKDİM, QULAĞIMIZ'
-            ' PARTLADI! 3 dəfədir qışqırırsan, aldın timeout!'
+            f'{message.author.mention}, qulağımız partladı! 3 dəfədir'
+            ' qışqırırsan, aldın timeout!'
         )
-        await warn_msg.delete(delay=5)
       else:
         warn_msg = await message.channel.send(
-            f'{message.author.mention}, ANAVİ BACİVİ SİKDİM, NİYƏ QIŞQIRIRSAN'
-            f" AMK, söndür o Caps'i! Uyarı: ({count}/3)"
+            f'{message.author.mention}, niyə qışqırırsan, söndür o Caps-i! Uyarı:'
+            f' ({count}/3)'
         )
-        await warn_msg.delete(delay=5)
+      await warn_msg.delete(delay=5)
       return
     except:
       pass
 
-  # --- REKLAM / LİNK QORUMASI ---
+  # --- REKLAM / LİNK ---
   link_patterns = [
       'discord.gg/',
       'discord.com/invite',
@@ -347,15 +338,14 @@ async def on_message(message):
     try:
       await message.delete()
       warn_msg = await message.channel.send(
-          f'{message.author.mention}, ANAVİ BACİVİ SİKDİM, BAŞQA SERVERİN'
-          ' REKLamini GÖTÜMƏ SÜRTÜRSƏN? Bir də link atsan banı yeyəcəksən!'
+          f'{message.author.mention}, başqa serverin reklamını etmək qadağandır!'
       )
       await warn_msg.delete(delay=5)
       return
     except:
       pass
 
-  # --- TƏKRAR MƏTN VƏ SPAM QORUMASI (Dəqiqləşdirildi) ---
+  # --- TƏKRAR MƏTN VƏ SPAM ---
   author_id = message.author.id
   current_time = time.time()
 
@@ -364,7 +354,6 @@ async def on_message(message):
 
   last_msg = user_last_message.get(author_id, ('', 0))
 
-  # Eyni mesajı qısa müddətdə (2 saniyədən tez) təkrar atanlar
   if (
       last_msg[0] == content or last_msg[0] == cleaned
   ) and current_time - last_msg[1] < 2.5:
@@ -378,16 +367,15 @@ async def on_message(message):
         until = discord.utils.utcnow() + datetime.timedelta(minutes=1)
         await message.author.timeout(until, reason='Tekrar Mesaj Spamı.')
         warn_msg = await message.channel.send(
-            f'{message.author.mention}, ANAVİ BACİVİ SİKDİM, 3 DƏFƏDİR EYNİ ŞEYİ'
-            ' ATIRSAN! Aldın 1 dəqiqəlik timeout!'
+            f'{message.author.mention}, 3 dəfədir eyni şeyi atırsan! Aldın'
+            ' timeout!'
         )
-        await warn_msg.delete(delay=5)
       else:
         warn_msg = await message.channel.send(
-            f'{message.author.mention}, ANAVİ BACİVİ SİKDİM, EYNİ ŞEYİ'
-            f' TƏKRAR-TƏKRAR ATMA! Uyarı: ({count}/3)'
+            f'{message.author.mention}, eyni şeyi təkrar-təkrar atma! Uyarı:'
+            f' ({count}/3)'
         )
-        await warn_msg.delete(delay=5)
+      await warn_msg.delete(delay=5)
       return
     except:
       pass
@@ -397,7 +385,6 @@ async def on_message(message):
       current_time,
   )
 
-  # Həqiqi sürətli spam (5 saniyədə 10 mesajdan çox atanlar)
   user_message_counts[author_id] = [
       t for t in user_message_counts[author_id] if current_time - t < 5
   ]
@@ -409,8 +396,7 @@ async def on_message(message):
       until = discord.utils.utcnow() + datetime.timedelta(minutes=1)
       await message.author.timeout(until, reason='Həddindən artıq sürətli spam.')
       warn_msg = await message.channel.send(
-          f'{message.author.mention}, ANAVİ BACİVİ SİKDİM, ÇOX SPAM ATIRSAN!'
-          ' Aldın 1 dəqiqəlik timeout!'
+          f'{message.author.mention}, çox sürətli mesaj atırsan! Aldın timeout!'
       )
       await warn_msg.delete(delay=5)
       return
