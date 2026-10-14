@@ -1,3 +1,4 @@
+
 import datetime
 import os
 from collections import defaultdict
@@ -32,7 +33,7 @@ intents.message_content = True
 intents.members = True
 intents.webhooks = True
 intents.guilds = True
-intents.voice_states = True  # moderation sətri silindi, xəta aradan qalxdı
+intents.voice_states = True
 
 bot = commands.Bot(command_prefix='!', help_command=None, intents=intents)
 
@@ -216,7 +217,7 @@ async def on_message(message):
     await bot.process_commands(message)
     return
 
-  # --- EMOJİ SPAM ---
+  # --- EMOJİ SPAM QORUMASI ---
   emoji_count = len(re.findall(r'<a?:\w+:\d+>', content))
   if emoji_count > 6:
     try:
@@ -229,13 +230,13 @@ async def on_message(message):
     except:
       pass
 
-  # Zərərli linklər
+  # Zərərli link və fırıldaqçılıq qoruması
   dangerous_patterns = ['discord-gift', 'free-nitro', 'steam-nitro', 'dlcord.gg']
   if any(pattern in cleaned for pattern in dangerous_patterns):
     try:
       await message.delete()
       until = discord.utils.utcnow() + datetime.timedelta(minutes=1)
-      await message.author.timeout(until, reason='Zərərli link paylaşımı.')
+      await message.author.timeout(until, reason='Zərərli / Phishing link.')
       warn_msg = await message.channel.send(
           f'{message.author.mention}, şübhəli link paylaşdığı üçün 1 dəqiqəlik'
           ' timeout aldı!'
@@ -245,7 +246,7 @@ async def on_message(message):
     except:
       pass
 
-  # Kütləvi etiketləmə
+  # Kütləvi etiketləmə qoruması
   if message.mention_everyone or len(message.mentions) > 4:
     try:
       await message.delete()
@@ -257,7 +258,7 @@ async def on_message(message):
     except:
       pass
 
-  # Çox uzun mesaj
+  # Çox uzun mesaj qoruması
   if len(content) > 200:
     try:
       await message.delete()
@@ -282,7 +283,7 @@ async def on_message(message):
     except:
       pass
 
-  # --- CAPS LOCK ---
+  # --- CAPS LOCK QORUMASI ---
   is_random_laugh = any(
       x in cleaned
       for x in [
@@ -326,7 +327,7 @@ async def on_message(message):
     except:
       pass
 
-  # --- REKLAM / LİNK ---
+  # --- REKLAM / LİNK QORUMASI ---
   link_patterns = [
       'discord.gg/',
       'discord.com/invite',
@@ -345,7 +346,7 @@ async def on_message(message):
     except:
       pass
 
-  # --- TƏKRAR MƏTN VƏ SPAM ---
+  # --- TƏKRAR MƏTN SPAM QORUMASI ---
   author_id = message.author.id
   current_time = time.time()
 
@@ -365,7 +366,7 @@ async def on_message(message):
       if count >= 3:
         repeat_warnings[author_id] = 0
         until = discord.utils.utcnow() + datetime.timedelta(minutes=1)
-        await message.author.timeout(until, reason='Tekrar Mesaj Spamı.')
+        await message.author.timeout(until, reason='Təkrar Mesaj Spamı.')
         warn_msg = await message.channel.send(
             f'{message.author.mention}, 3 dəfədir eyni şeyi atırsan! Aldın'
             ' timeout!'
@@ -385,6 +386,7 @@ async def on_message(message):
       current_time,
   )
 
+  # Sürətli Mesaj Spamı
   user_message_counts[author_id] = [
       t for t in user_message_counts[author_id] if current_time - t < 5
   ]
@@ -406,7 +408,7 @@ async def on_message(message):
   await bot.process_commands(message)
 
 
-# --- KOMANDALAR ---
+# --- BÜTÜN KOMANDALAR ---
 
 
 @bot.command(name='yardim', aliases=['help'])
@@ -679,4 +681,4 @@ async def kick(ctx, member: discord.Member, *, reason='Göstərilməyib'):
 if __name__ == '__main__':
   keep_alive()
   bot.run(os.environ.get('DISCORD_TOKEN'))
-      
+  
