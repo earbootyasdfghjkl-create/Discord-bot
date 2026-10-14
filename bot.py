@@ -1,5 +1,3 @@
-
-
 import datetime
 import os
 from collections import defaultdict
@@ -75,7 +73,7 @@ def clean_text(text):
   return text.replace(' ', '')
 
 
-# --- BOT HAZIR OLDUQDA VƏ SƏSƏ QOŞULDUQDA ---
+# --- BOT HAZIR OLDUQDA VƏ SƏSƏ QOŞULDA ---
 @bot.event
 async def on_ready():
   activity = discord.Activity(
@@ -84,17 +82,18 @@ async def on_ready():
   await bot.change_presence(activity=activity)
   print(f'ALLAHSİZ Təhlükəsizlik Botu tam aktivdir: {bot.user}')
 
-  # 7/24 Səs Kanalına Qoşulma
-  try:
-    channel = bot.get_channel(VOICE_CHANNEL_ID)
-    if channel and isinstance(channel, discord.VoiceChannel):
-      await channel.connect(reconnect=True, self_deaf=True)
-      print(f'Bot {channel.name} səs kanalına 7/24 daxil oldu!')
-  except Exception as e:
-    print(f'Səs kanalına qoşularkən xəta baş verdi: {e}')
+  # Əgər bot artıq heç bir səsdə yoxdursa, qoşulsun (Hər dəfə səsdən çıxıb girməsin)
+  if not bot.voice_clients:
+    try:
+      channel = bot.get_channel(VOICE_CHANNEL_ID)
+      if channel and isinstance(channel, discord.VoiceChannel):
+        await channel.connect(reconnect=True, self_deaf=True)
+        print(f'Bot {channel.name} səs kanalına 7/24 daxil oldu!')
+    except Exception as e:
+      print(f'Səs kanalına qoşularkən xəta: {e}')
 
 
-# --- ƏGƏR SƏS KANALINDAN ÇIXARILARSA AVTOMATİK GERİ QOŞULMA ---
+# --- ƏGƏR KİMSƏ BOTU SƏSDƏN ÇIXARARSA GERİ QOŞULMA ---
 @bot.event
 async def on_voice_state_update(member, before, after):
   if member.id == bot.user.id and after.channel is None:
@@ -102,9 +101,8 @@ async def on_voice_state_update(member, before, after):
       channel = bot.get_channel(VOICE_CHANNEL_ID)
       if channel and isinstance(channel, discord.VoiceChannel):
         await channel.connect(reconnect=True, self_deaf=True)
-        print('Bot səs kanalına yenidən avtomatik daxil oldu!')
-    except Exception as e:
-      print(f'Səsə avtomatik geri qoşulma xətası: {e}')
+    except:
+      pass
 
 
 # --- SAXTA HESAB VƏ BOT QORUNMASI ---
@@ -137,7 +135,7 @@ async def on_webhooks_update(channel):
     pass
 
 
-# --- 2. KANAL YARADILMASI QORUNMASI (Adminlər və Sahib yarada bilər) ---
+# --- 2. KANAL YARADILMASI QORUNMASI ---
 @bot.event
 async def on_guild_channel_create(channel):
   try:
@@ -154,7 +152,7 @@ async def on_guild_channel_create(channel):
     pass
 
 
-# --- 3. ROL YARADILMASI QORUNMASI (Adminlər və Sahib yarada bilər) ---
+# --- 3. ROL YARADILMASI QORUNMASI ---
 @bot.event
 async def on_guild_role_create(role):
   try:
@@ -222,7 +220,7 @@ async def on_message(message):
 
   # --- HƏDDİNDƏN ARTIQ EMOJİ / SPAM QORUMASI ---
   emoji_count = len(re.findall(r'<a?:\w+:\d+>', content))
-  if emoji_count > 5:
+  if emoji_count > 6:
     try:
       await message.delete()
       warn_msg = await message.channel.send(
@@ -249,11 +247,11 @@ async def on_message(message):
       )
       await warn_msg.delete(delay=5)
       return
-    except Exception as e:
-      print(f'Timeout error: {e}')
+    except:
+      pass
 
   # Kütləvi etiketləmə qoruması
-  if message.mention_everyone or len(message.mentions) > 3:
+  if message.mention_everyone or len(message.mentions) > 4:
     try:
       await message.delete()
       warn_msg = await message.channel.send(
@@ -264,8 +262,8 @@ async def on_message(message):
     except:
       pass
 
-  # Çox uzun mesaj qoruması (180 simvoldan çox)
-  if len(content) > 180:
+  # Çox uzun mesaj qoruması (200 simvoldan çox)
+  if len(content) > 200:
     try:
       await message.delete()
       long_text_warnings[message.author.id] += 1
@@ -289,8 +287,8 @@ async def on_message(message):
         )
         await warn_msg.delete(delay=5)
       return
-    except Exception as e:
-      print(f'Timeout error: {e}')
+    except:
+      pass
 
   # --- CAPS LOCK QORUMASI ---
   is_random_laugh = any(
@@ -310,8 +308,8 @@ async def on_message(message):
   )
   if (
       not is_random_laugh
-      and len(content) > 15
-      and sum(1 for c in content if c.isupper()) / len(content) > 0.75
+      and len(content) > 18
+      and sum(1 for c in content if c.isupper()) / len(content) > 0.8
   ):
     try:
       await message.delete()
@@ -334,8 +332,8 @@ async def on_message(message):
         )
         await warn_msg.delete(delay=5)
       return
-    except Exception as e:
-      print(f'Timeout error: {e}')
+    except:
+      pass
 
   # --- REKLAM / LİNK QORUMASI ---
   link_patterns = [
@@ -357,7 +355,7 @@ async def on_message(message):
     except:
       pass
 
-  # --- TƏKRAR MƏTN SPAM QORUMASI ---
+  # --- TƏKRAR MƏTN VƏ SPAM QORUMASI (Dəqiqləşdirildi) ---
   author_id = message.author.id
   current_time = time.time()
 
@@ -366,9 +364,10 @@ async def on_message(message):
 
   last_msg = user_last_message.get(author_id, ('', 0))
 
+  # Eyni mesajı qısa müddətdə (2 saniyədən tez) təkrar atanlar
   if (
       last_msg[0] == content or last_msg[0] == cleaned
-  ) and current_time - last_msg[1] < 4:
+  ) and current_time - last_msg[1] < 2.5:
     try:
       await message.delete()
       repeat_warnings[author_id] += 1
@@ -390,26 +389,28 @@ async def on_message(message):
         )
         await warn_msg.delete(delay=5)
       return
-    except Exception as e:
-      print(f'Timeout error: {e}')
+    except:
+      pass
 
   user_last_message[author_id] = (
       cleaned if len(cleaned) > 2 else content,
       current_time,
   )
 
-  # Sürətli Mesaj Spamı
+  # Həqiqi sürətli spam (5 saniyədə 10 mesajdan çox atanlar)
   user_message_counts[author_id] = [
       t for t in user_message_counts[author_id] if current_time - t < 5
   ]
   user_message_counts[author_id].append(current_time)
 
-  if len(user_message_counts[author_id]) > 6:
+  if len(user_message_counts[author_id]) > 10:
     try:
       await message.delete()
+      until = discord.utils.utcnow() + datetime.timedelta(minutes=1)
+      await message.author.timeout(until, reason='Həddindən artıq sürətli spam.')
       warn_msg = await message.channel.send(
-          f'{message.author.mention}, ANAVİ BACİVİ SİKDİM, PUL PAYLAYIRLAR'
-          ' MƏYƏR? Çox sürətli yazırsan, yavaş ol!'
+          f'{message.author.mention}, ANAVİ BACİVİ SİKDİM, ÇOX SPAM ATIRSAN!'
+          ' Aldın 1 dəqiqəlik timeout!'
       )
       await warn_msg.delete(delay=5)
       return
