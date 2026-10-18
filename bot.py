@@ -113,12 +113,25 @@ class TicketButtonView(View):
   async def open_ticket(
       self, interaction: discord.Interaction, button: discord.Button
   ):
+    guild = interaction.guild
+    member = interaction.user
+
+    # İstifadəçinin artıq açıq biletinin olub-olmadığını yoxlayırıq
+    for channel in guild.text_channels:
+      if (
+          channel.name.startswith("ticket-")
+          and member in channel.members
+          and channel.overwrites_for(member).view_channel
+      ):
+        await interaction.response.send_message(
+            f"❌ Sənin onsuz da açıq biletin var: {channel.mention}",
+            ephemeral=True,
+        )
+        return
+
     global ticket_counter
     ticket_counter += 1
     ticket_name = f"ticket-{ticket_counter:03d}"
-
-    guild = interaction.guild
-    member = interaction.user
 
     overwrites = {
         guild.default_role: discord.PermissionOverwrite(view_channel=False),
@@ -149,17 +162,15 @@ class TicketButtonView(View):
           title=f"🎫 Şikayət / Dəstək Mərkəzi | {ticket_name}",
           description=(
               f"Salam {member.mention},\nBiletiniz uğurla açıldı! Şikayətinizi"
-              " və ya probleminizi ətraflı şəkildə buraya yazın.\n\nYalnız"
-              " sizə xüsusi olaraq bu kanal açıldı."
+              " və ya probleminizi ətraflı şəkildə buraya yazın.\n\n*Bu kanal"
+              " yalnız sizin və səlahiyyətlilər üçündür.*"
           ),
           color=0x2b2d31,
       )
       embed.set_footer(text=f"Zona Security Systems | Bilet No: {ticket_name}")
 
       await channel.send(
-          content=f"{member.mention} <@!{OWNER_ID}>",
-          embed=embed,
-          view=close_view,
+          content=f"{member.mention}", embed=embed, view=close_view
       )
       await interaction.response.send_message(
           f"✅ Şikayət kanalınız yaradıldı: {channel.mention}", ephemeral=True
@@ -202,7 +213,7 @@ async def on_ready():
   if not update_status.is_running():
     update_status.start()
 
-  # Bilet kanalına avtomatik səliqəli panel göndərilməsi
+  # Bilet kanalına avtomatik panel göndərilməsi
   try:
     target_channel = bot.get_channel(TARGET_PANEL_CHANNEL_ID)
     if target_channel:
@@ -212,8 +223,7 @@ async def on_ready():
               "Server ilə bağlı hər hansı bir şikayətiniz, sualınız və ya"
               " probleminiz varsa, aşağıdakı düyməyə basaraq bizimlə"
               " əlaqə saxlayın.\n\n*Düyməyə basan kimi yalnız sizinlə"
-              " administratorun görə biləcəyi gizli kanal nömrələnmiş şəkildə"
-              " açılacaq!*"
+              " administratorun görə biləcəyi nömrələnmiş gizli kanal açılacaq!*"
           ),
           color=0x2b2d31,
       )
@@ -890,4 +900,4 @@ if __name__ == "__main__":
   else:
     print("XƏTA: DISCORD_TOKEN tapılmadı!")
     
-    
+ 
