@@ -1,4 +1,3 @@
-
 from collections import defaultdict
 import datetime
 import os
@@ -79,13 +78,12 @@ def clean_text(text):
 # --- CANLI STATİSTİKA STATUS DÖVRÜ ---
 @tasks.loop(seconds=10)
 async def update_status():
-  total_members = sum(guild.member_count for guild in bot.guilds)
   latency = round(bot.latency * 1000)
 
   activities = [
       discord.Activity(
           type=discord.ActivityType.watching,
-          name=f"👥 {total_members} Üzvü qoruyur",
+          name="👀 Leo sizi izliyor",
       ),
       discord.Activity(
           type=discord.ActivityType.playing,
@@ -203,6 +201,27 @@ async def on_ready():
 
   if not update_status.is_running():
     update_status.start()
+
+  # Bilet kanalına avtomatik səliqəli panel göndərilməsi
+  try:
+    target_channel = bot.get_channel(TARGET_PANEL_CHANNEL_ID)
+    if target_channel:
+      embed = discord.Embed(
+          title="🎫 Zona Dəstək və Şikayət Mərkəzi",
+          description=(
+              "Server ilə bağlı hər hansı bir şikayətiniz, sualınız və ya"
+              " probleminiz varsa, aşağıdakı düyməyə basaraq bizimlə"
+              " əlaqə saxlayın.\n\n*Düyməyə basan kimi yalnız sizinlə"
+              " administratorun görə biləcəyi gizli kanal nömrələnmiş şəkildə"
+              " açılacaq!*"
+          ),
+          color=0x2b2d31,
+      )
+      embed.set_footer(text="Zona Security Systems")
+      view = TicketButtonView()
+      await target_channel.send(embed=embed, view=view)
+  except:
+    pass
 
   if not bot.voice_clients:
     try:
@@ -513,7 +532,7 @@ async def panel(ctx):
             "Server ilə bağlı hər hansı bir şikayətiniz, sualınız və ya"
             " probleminiz varsa, aşağıdakı düyməyə basaraq bizimlə"
             " əlaqə saxlayın.\n\n*Düyməyə basan kimi yalnız sizinlə"
-            " administratorun görə biləcəyi gizli kanal açılacaq!*"
+            " administratorun görə biləcəyi nömrələnmiş gizli kanal açılacaq!*"
         ),
         color=0x2b2d31,
     )
@@ -699,17 +718,44 @@ async def server_url(ctx):
       and not ctx.author.guild_permissions.administrator
   ):
     return
-  if ctx.guild.vanity_url_code:
-    try:
-      vanity = await ctx.guild.vanity_invite()
-      await ctx.send(
-          f"🔗 **{ctx.guild.name} Dəvət Linki:** `discord.gg/{vanity.code}`"
-          f" (**İstifade:** `{vanity.uses}`)"
-      )
-      return
-    except:
-      pass
-  await ctx.send(f"🔗 **{ctx.guild.name} Dəvət Linki:** `discord.gg/zona`")
+  try:
+    await ctx.message.delete()
+    guild = ctx.guild
+    invite_link = "discord.gg/zona"
+    uses_count = "Bilinmir"
+
+    if guild.vanity_url_code:
+      try:
+        vanity = await guild.vanity_invite()
+        invite_link = f"discord.gg/{vanity.code}"
+        uses_count = str(vanity.uses)
+      except:
+        pass
+
+    embed = discord.Embed(
+        title=f"🔗 {guild.name} — Server Dəvət Mərkəzi",
+        description=(
+            f"Serverimizin rəsmi və qalıcı dəvət linki:\n👉 **[{invite_link}](https://{invite_link})**"
+        ),
+        color=0x2b2d31,
+    )
+    embed.add_field(
+        name="📊 İstifadə Sayı", value=f"`{uses_count} dəfə`", inline=True
+    )
+    embed.add_field(
+        name="👑 Server Sahib(e)si", value=f"{guild.owner.mention}", inline=True
+    )
+
+    if guild.banner:
+      embed.set_image(url=guild.banner.url)
+
+    if guild.icon:
+      embed.set_thumbnail(url=guild.icon.url)
+
+    embed.set_footer(text=f"{guild.name} | Zona Security Systems")
+    await ctx.send(embed=embed, delete_after=20)
+  except:
+    pass
 
 
 @bot.command(name="sil", aliases=["temizle"])
@@ -843,4 +889,5 @@ if __name__ == "__main__":
     bot.run(token)
   else:
     print("XƏTA: DISCORD_TOKEN tapılmadı!")
+    
     
