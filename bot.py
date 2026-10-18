@@ -448,16 +448,14 @@ async def on_message(message):
             f"{message.author.mention} Senin doganva soxm yavas yaz [uyarı 3]"
         )
         until = discord.utils.utcnow() + datetime.timedelta(minutes=5)
-        await message.author.timeout(
-            until, reason="Spam və xəbərdarlıqlara məhəl qoymamaq"
-        )
-        repeat_warnings[author_id] = 0
-        await warn_msg.delete(delay=5)
-      return
-    except:
-      pass
+await message.author.timeout(until, reason="Spam və xəbərdarlıqlara məhəl qoymamaq")
+repeat_warnings[author_id] = 0
+await warn_msg.delete(delay=5)
+return
+except:
+  pass
 
-  await bot.process_commands(message)
+await bot.process_commands(message)
 
 
 # --- BÜTÜN KOMANDALAR (YALNIZ SAHİB ÜÇÜN) ---
@@ -704,7 +702,7 @@ async def server_url(ctx):
   try:
     await ctx.message.delete()
     guild = ctx.guild
-    invite_link = "discord.gg/zona"
+    invite_link = "discord.gg/88x"
     uses_count = "Bilinmir"
 
     if guild.vanity_url_code:
@@ -723,22 +721,22 @@ async def server_url(ctx):
         color=0x2b2d31,
     )
     embed.add_field(
-    name="📊 İstifadə Sayı", value=f"`{uses_count} dəfə`", inline=True
-)
-embed.add_field(
-    name="👑 Server Sahib(e)si", value=f"{guild.owner.mention}", inline=True
-)
+        name="📊 İstifadə Sayı", value=f"`{uses_count} dəfə`", inline=True
+    )
+    embed.add_field(
+        name="👑 Server Sahib(e)si", value=f"{guild.owner.mention}", inline=True
+    )
 
-if guild.banner:
-  embed.set_image(url=guild.banner.url)
+    if guild.banner:
+      embed.set_image(url=guild.banner.url)
 
-if guild.icon:
-  embed.set_thumbnail(url=guild.icon.url)
+    if guild.icon:
+      embed.set_thumbnail(url=guild.icon.url)
 
-embed.set_footer(text=f"{guild.name} | Zona Security Systems")
-await ctx.send(embed=embed, delete_after=20)
-except:
-  pass
+    embed.set_footer(text=f"{guild.name} | Zona Security Systems")
+    await ctx.send(embed=embed, delete_after=20)
+  except:
+    pass
 
 
 @bot.command(name="sil", aliases=["temizle"])
@@ -851,5 +849,4 @@ if __name__ == "__main__":
     bot.run(token)
   else:
     print("XƏTA: DISCORD_TOKEN tapılmadı!")
-    
-    
+      
