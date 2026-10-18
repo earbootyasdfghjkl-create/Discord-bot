@@ -32,7 +32,6 @@ def keep_alive():
 intents = discord.Intents.default()
 intents.message_content = True
 intents.members = True
-intents.audit_log = True
 intents.guilds = True
 intents.voice_states = True
 
@@ -50,7 +49,6 @@ kick_action_counts = defaultdict(list)
 channel_delete_counts = defaultdict(list)
 repeat_warnings = defaultdict(int)
 
-# Biletlər üçün sıra nömrəsi sayğacı (yaddaşda saxlanılır)
 ticket_counter = 0
 
 TIME_WINDOW = 15
@@ -118,12 +116,11 @@ class TicketButtonView(View):
   ):
     global ticket_counter
     ticket_counter += 1
-    ticket_name = f"ticket-{ticket_counter:03d}"  # Məsələn: ticket-001, ticket-002
+    ticket_name = f"ticket-{ticket_counter:03d}"
 
     guild = interaction.guild
     member = interaction.user
 
-    # İcazələr: Yalnız Owner və bileti açan şəxs görə bilər
     overwrites = {
         guild.default_role: discord.PermissionOverwrite(view_channel=False),
         member: discord.PermissionOverwrite(
@@ -174,7 +171,6 @@ class TicketButtonView(View):
       )
 
 
-# Biletləri bağlamaq üçün düymə
 class TicketCloseView(View):
 
   def __init__(self):
@@ -202,7 +198,7 @@ class TicketCloseView(View):
 @bot.event
 async def on_ready():
   print(f"Zona Təhlükəsizlik Botu tam aktivdir: {bot.user}")
-  bot.add_view(TicketButtonView())  # Düymələrin yaddaşda qalması üçün
+  bot.add_view(TicketButtonView())
 
   if not update_status.is_running():
     update_status.start()
@@ -217,7 +213,6 @@ async def on_ready():
       print(f"Səs kanalına qoşularkən xəta: {e}")
 
 
-# --- SƏSDƏN ÇIXANDA GERİ QOŞULMA ---
 @bot.event
 async def on_voice_state_update(member, before, after):
   if member.id == bot.user.id and after.channel is None:
@@ -229,7 +224,6 @@ async def on_voice_state_update(member, before, after):
       pass
 
 
-# --- SAXTA HESAB QORUNMASI ---
 @bot.event
 async def on_member_join(member):
   try:
@@ -243,7 +237,6 @@ async def on_member_join(member):
     pass
 
 
-# --- KANAL YARADILMASI QORUNMASI ---
 @bot.event
 async def on_guild_channel_create(channel):
   try:
@@ -260,7 +253,6 @@ async def on_guild_channel_create(channel):
     pass
 
 
-# --- ROL YARADILMASI VƏ İCAZƏ DƏYİŞİKLİYİ QORUNMASI ---
 @bot.event
 async def on_guild_role_create(role):
   try:
@@ -296,7 +288,6 @@ async def on_guild_role_update(before, after):
     pass
 
 
-# --- ANTİ-NUKE BAN QORUMASI ---
 @bot.event
 async def on_member_ban(guild, user):
   try:
@@ -326,7 +317,6 @@ async def on_member_ban(guild, user):
     pass
 
 
-# --- MESAJ VƏ TƏHLÜKƏSİZLİK FİLTRLƏRİ ---
 @bot.event
 async def on_message(message):
   if message.author.bot or not message.guild:
@@ -344,7 +334,6 @@ async def on_message(message):
     await bot.process_commands(message)
     return
 
-  # 1. EMOJI SPAM QORUMASI
   emoji_count = len(re.findall(r"<a?:\w+:\d+>", content))
   if emoji_count > 6:
     try:
@@ -357,7 +346,6 @@ async def on_message(message):
     except:
       pass
 
-  # 2. ZƏRƏRLİ LİNK QORUMASI
   dangerous_patterns = ["discord.gift/", "free-nitro", "steam-nitro", "nitro"]
   if any(pattern in cleaned for pattern in dangerous_patterns):
     try:
@@ -373,7 +361,6 @@ async def on_message(message):
     except:
       pass
 
-  # 3. KÜTLƏVİ ETİKETLƏMƏ QORUMASI
   if message.mention_everyone or len(message.mentions) > 4:
     try:
       await message.delete()
@@ -385,7 +372,6 @@ async def on_message(message):
     except:
       pass
 
-  # 4. REKLAM / LİNK QORUMASI
   link_patterns = [
       "discord.gg/",
       "discord.com/invite",
@@ -404,7 +390,6 @@ async def on_message(message):
     except:
       pass
 
-  # 5. SƏRT UYARI İLƏ SPAM QORUMASI
   author_id = message.author.id
   current_time = time.time()
   user_message_counts[author_id] = [
@@ -539,7 +524,6 @@ async def panel(ctx):
     pass
 
 
-# ÇEKİLİŞ KOMANDASI (!cekilis dəqiqə hədiyyə)
 @bot.command(name="cekilis")
 async def cekilis(ctx, minutes: int, *, prize: str):
   if (
@@ -587,7 +571,6 @@ async def cekilis(ctx, minutes: int, *, prize: str):
     pass
 
 
-# SORĞU KOMANDASI (!sorğu sual)
 @bot.command(name="sorğu", aliases=["sorqu", "poll"])
 async def sorqu(ctx, *, question: str):
   if (
