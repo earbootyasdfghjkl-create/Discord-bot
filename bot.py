@@ -38,8 +38,8 @@ intents.voice_states = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 OWNER_ID = 641014966312501259
-VOICE_CHANNEL_ID = 1507834544756101302  # Sənin səs kanalının ID-si
-TARGET_PANEL_CHANNEL_ID = 1561265942795649024  # Şikayət kanalının ID-si
+VOICE_CHANNEL_ID = 1507834544756101302
+TARGET_PANEL_CHANNEL_ID = 1561265942795649024
 
 anti_spam_status = {}
 user_message_counts = defaultdict(list)
@@ -116,7 +116,6 @@ class TicketButtonView(View):
     guild = interaction.guild
     member = interaction.user
 
-    # İstifadəçinin artıq açıq biletinin olub-olmadığını yoxlayırıq
     for channel in guild.text_channels:
       if (
           channel.name.startswith("ticket-")
@@ -215,7 +214,6 @@ async def on_ready():
   if not update_status.is_running():
     update_status.start()
 
-  # Bilet kanalına avtomatik panel göndərilməsi
   try:
     target_channel = bot.get_channel(TARGET_PANEL_CHANNEL_ID)
     if target_channel:
@@ -435,27 +433,29 @@ async def on_message(message):
 
       if count == 1:
         warn_msg = await message.channel.send(
-            f"{message.author.mention} Senin doganva soxm yavas yaz [uyarı 1]"
+            f"{message.author.mention} yavaş yaz [uyarı 1]"
         )
         await warn_msg.delete(delay=5)
       elif count == 2:
         warn_msg = await message.channel.send(
-            f"{message.author.mention} Senin doganva soxm yavas yaz [uyarı 2]"
+            f"{message.author.mention} yavaş yaz [uyarı 2]"
         )
         await warn_msg.delete(delay=5)
       elif count >= 3:
         warn_msg = await message.channel.send(
-            f"{message.author.mention} Senin doganva soxm yavas yaz [uyarı 3]"
+            f"{message.author.mention} yavaş yaz [uyarı 3]"
         )
         until = discord.utils.utcnow() + datetime.timedelta(minutes=5)
-await message.author.timeout(until, reason="Spam və xəbərdarlıqlara məhəl qoymamaq")
-repeat_warnings[author_id] = 0
-await warn_msg.delete(delay=5)
-return
-except:
-  pass
+        await message.author.timeout(
+            until, reason="Spam və xəbərdarlıqlara məhəl qoymamaq"
+        )
+        repeat_warnings[author_id] = 0
+        await warn_msg.delete(delay=5)
+      return
+    except:
+      pass
 
-await bot.process_commands(message)
+  await bot.process_commands(message)
 
 
 # --- BÜTÜN KOMANDALAR (YALNIZ SAHİB ÜÇÜN) ---
@@ -849,4 +849,5 @@ if __name__ == "__main__":
     bot.run(token)
   else:
     print("XƏTA: DISCORD_TOKEN tapılmadı!")
-      
+    
+  
