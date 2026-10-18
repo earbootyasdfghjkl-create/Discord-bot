@@ -1,3 +1,4 @@
+
 from collections import defaultdict
 import datetime
 import os
@@ -431,7 +432,7 @@ async def on_message(message):
 
 
 # --- BÜTÜN KOMANDALAR ---
-@bot.command(name="yardim", aliases=["help"])
+@bot.command(name="yardim")
 async def yardim(ctx):
   if (
       ctx.author.id != OWNER_ID
