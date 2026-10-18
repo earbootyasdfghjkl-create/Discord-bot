@@ -163,14 +163,16 @@ class TicketButtonView(View):
           description=(
               f"Salam {member.mention},\nBiletiniz uğurla açıldı! Şikayətinizi"
               " və ya probleminizi ətraflı şəkildə buraya yazın.\n\n*Bu kanal"
-              " yalnız sizin və səlahiyyətlilər üçündür.*"
+              " yalnız sizin və sahib üçündür.*"
           ),
           color=0x2b2d31,
       )
       embed.set_footer(text=f"Zona Security Systems | Bilet No: {ticket_name}")
 
       await channel.send(
-          content=f"{member.mention}", embed=embed, view=close_view
+          content=f"{member.mention} <@!{OWNER_ID}>",
+          embed=embed,
+          view=close_view,
       )
       await interaction.response.send_message(
           f"✅ Şikayət kanalınız yaradıldı: {channel.mention}", ephemeral=True
@@ -223,7 +225,7 @@ async def on_ready():
               "Server ilə bağlı hər hansı bir şikayətiniz, sualınız və ya"
               " probleminiz varsa, aşağıdakı düyməyə basaraq bizimlə"
               " əlaqə saxlayın.\n\n*Düyməyə basan kimi yalnız sizinlə"
-              " administratorun görə biləcəyi nömrələnmiş gizli kanal açılacaq!*"
+              " sahibin görə biləcəyi nömrələnmiş gizli kanal açılacaq!*"
           ),
           color=0x2b2d31,
       )
@@ -275,10 +277,8 @@ async def on_guild_channel_create(channel):
     ):
       if entry.user and entry.user.id != OWNER_ID and not entry.user.bot:
         member = channel.guild.get_member(entry.user.id)
-        if member and not member.guild_permissions.administrator:
-          await channel.delete(
-              reason="Administrator və ya Sahibdən icazəsiz kanal"
-          )
+        if member and member.id != OWNER_ID:
+          await channel.delete(reason="Sahibdən icazəsiz kanal")
   except:
     pass
 
@@ -291,8 +291,8 @@ async def on_guild_role_create(role):
     ):
       if entry.user and entry.user.id != OWNER_ID and not entry.user.bot:
         member = role.guild.get_member(entry.user.id)
-        if member and not member.guild_permissions.administrator:
-          await role.delete(reason="Administrator və ya Sahibdən icazəsiz rol")
+        if member and member.id != OWNER_ID:
+          await role.delete(reason="Sahibdən icazəsiz rol")
   except:
     pass
 
@@ -307,7 +307,7 @@ async def on_guild_role_update(before, after):
         member = after.guild.get_member(entry.user.id)
         if (
             member
-            and not member.guild_permissions.administrator
+            and member.id != OWNER_ID
             and (after.permissions.administrator or after.permissions.manage_guild)
         ):
           await after.edit(
@@ -460,13 +460,10 @@ async def on_message(message):
   await bot.process_commands(message)
 
 
-# --- BÜTÜN KOMANDALAR ---
+# --- BÜTÜN KOMANDALAR (YALNIZ SAHİB ÜÇÜN) ---
 @bot.command(name="yardim")
 async def yardim(ctx):
-  if (
-      ctx.author.id != OWNER_ID
-      and not ctx.author.guild_permissions.administrator
-  ):
+  if ctx.author.id != OWNER_ID:
     return
 
   embed = discord.Embed(
@@ -522,10 +519,7 @@ async def yardim(ctx):
 
 @bot.command(name="panel")
 async def panel(ctx):
-  if (
-      ctx.author.id != OWNER_ID
-      and not ctx.author.guild_permissions.administrator
-  ):
+  if ctx.author.id != OWNER_ID:
     return
   try:
     await ctx.message.delete()
@@ -542,7 +536,7 @@ async def panel(ctx):
             "Server ilə bağlı hər hansı bir şikayətiniz, sualınız və ya"
             " probleminiz varsa, aşağıdakı düyməyə basaraq bizimlə"
             " əlaqə saxlayın.\n\n*Düyməyə basan kimi yalnız sizinlə"
-            " administratorun görə biləcəyi nömrələnmiş gizli kanal açılacaq!*"
+            " sahibin görə biləcəyi nömrələnmiş gizli kanal açılacaq!*"
         ),
         color=0x2b2d31,
     )
@@ -556,10 +550,7 @@ async def panel(ctx):
 
 @bot.command(name="cekilis")
 async def cekilis(ctx, minutes: int, *, prize: str):
-  if (
-      ctx.author.id != OWNER_ID
-      and not ctx.author.guild_permissions.administrator
-  ):
+  if ctx.author.id != OWNER_ID:
     return
   try:
     await ctx.message.delete()
@@ -603,10 +594,7 @@ async def cekilis(ctx, minutes: int, *, prize: str):
 
 @bot.command(name="sorğu", aliases=["sorqu", "poll"])
 async def sorqu(ctx, *, question: str):
-  if (
-      ctx.author.id != OWNER_ID
-      and not ctx.author.guild_permissions.administrator
-  ):
+  if ctx.author.id != OWNER_ID:
     return
   try:
     await ctx.message.delete()
@@ -628,10 +616,7 @@ async def sorqu(ctx, *, question: str):
 
 @bot.command(name="antispam")
 async def antispam(ctx, status: str):
-  if (
-      ctx.author.id != OWNER_ID
-      and not ctx.author.guild_permissions.administrator
-  ):
+  if ctx.author.id != OWNER_ID:
     return
   guild_id = ctx.guild.id
   if status.lower() == "enable":
@@ -648,10 +633,7 @@ async def antispam(ctx, status: str):
 
 @bot.command(name="lock")
 async def lock(ctx):
-  if (
-      ctx.author.id != OWNER_ID
-      and not ctx.author.guild_permissions.administrator
-  ):
+  if ctx.author.id != OWNER_ID:
     return
   try:
     await ctx.message.delete()
@@ -669,10 +651,7 @@ async def lock(ctx):
 
 @bot.command(name="unlock")
 async def unlock(ctx):
-  if (
-      ctx.author.id != OWNER_ID
-      and not ctx.author.guild_permissions.administrator
-  ):
+  if ctx.author.id != OWNER_ID:
     return
   try:
     await ctx.message.delete()
@@ -690,10 +669,7 @@ async def unlock(ctx):
 
 @bot.command(name="lockdown")
 async def lockdown(ctx):
-  if (
-      ctx.author.id != OWNER_ID
-      and not ctx.author.guild_permissions.administrator
-  ):
+  if ctx.author.id != OWNER_ID:
     return
   try:
     await ctx.message.delete()
@@ -723,10 +699,7 @@ async def lockdown(ctx):
 
 @bot.command(name="url")
 async def server_url(ctx):
-  if (
-      ctx.author.id != OWNER_ID
-      and not ctx.author.guild_permissions.administrator
-  ):
+  if ctx.author.id != OWNER_ID:
     return
   try:
     await ctx.message.delete()
@@ -750,30 +723,27 @@ async def server_url(ctx):
         color=0x2b2d31,
     )
     embed.add_field(
-        name="📊 İstifadə Sayı", value=f"`{uses_count} dəfə`", inline=True
-    )
-    embed.add_field(
-        name="👑 Server Sahib(e)si", value=f"{guild.owner.mention}", inline=True
-    )
+    name="📊 İstifadə Sayı", value=f"`{uses_count} dəfə`", inline=True
+)
+embed.add_field(
+    name="👑 Server Sahib(e)si", value=f"{guild.owner.mention}", inline=True
+)
 
-    if guild.banner:
-      embed.set_image(url=guild.banner.url)
+if guild.banner:
+  embed.set_image(url=guild.banner.url)
 
-    if guild.icon:
-      embed.set_thumbnail(url=guild.icon.url)
+if guild.icon:
+  embed.set_thumbnail(url=guild.icon.url)
 
-    embed.set_footer(text=f"{guild.name} | Zona Security Systems")
-    await ctx.send(embed=embed, delete_after=20)
-  except:
-    pass
+embed.set_footer(text=f"{guild.name} | Zona Security Systems")
+await ctx.send(embed=embed, delete_after=20)
+except:
+  pass
 
 
 @bot.command(name="sil", aliases=["temizle"])
 async def sil_komanda(ctx, limit: int = 5):
-  if (
-      ctx.author.id != OWNER_ID
-      and not ctx.author.guild_permissions.administrator
-  ):
+  if ctx.author.id != OWNER_ID:
     return
   try:
     await ctx.message.delete()
@@ -787,10 +757,7 @@ async def sil_komanda(ctx, limit: int = 5):
 
 @bot.command(name="siluser")
 async def siluser(ctx, member: discord.Member, limit: int = 10):
-  if (
-      ctx.author.id != OWNER_ID
-      and not ctx.author.guild_permissions.administrator
-  ):
+  if ctx.author.id != OWNER_ID:
     return
   try:
     await ctx.message.delete()
@@ -808,10 +775,7 @@ async def siluser(ctx, member: discord.Member, limit: int = 10):
 
 @bot.command(name="slowmode", aliases=["yavas"])
 async def slowmode(ctx, seconds: int = 0):
-  if (
-      ctx.author.id != OWNER_ID
-      and not ctx.author.guild_permissions.administrator
-  ):
+  if ctx.author.id != OWNER_ID:
     return
   try:
     await ctx.message.delete()
@@ -832,10 +796,7 @@ async def slowmode(ctx, seconds: int = 0):
 
 @bot.command(name="ping")
 async def ping(ctx):
-  if (
-      ctx.author.id != OWNER_ID
-      and not ctx.author.guild_permissions.administrator
-  ):
+  if ctx.author.id != OWNER_ID:
     return
   latency = round(bot.latency * 1000)
   await ctx.send(f"🏓 Pong! Botun gecikmə sürəti: **{latency}ms**")
@@ -843,10 +804,7 @@ async def ping(ctx):
 
 @bot.command(name="serverbilgisi")
 async def serverbilgisi(ctx):
-  if (
-      ctx.author.id != OWNER_ID
-      and not ctx.author.guild_permissions.administrator
-  ):
+  if ctx.author.id != OWNER_ID:
     return
   guild = ctx.guild
   embed = discord.Embed(title=f"📊 {guild.name} - Server Məlumatı", color=0x2b2d31)
@@ -864,10 +822,7 @@ async def serverbilgisi(ctx):
 
 @bot.command(name="ban")
 async def ban(ctx, member: discord.Member, *, reason="Göstərilməyib"):
-  if (
-      ctx.author.id != OWNER_ID
-      and not ctx.author.guild_permissions.administrator
-  ):
+  if ctx.author.id != OWNER_ID:
     return
   try:
     await member.ban(reason=reason)
@@ -880,10 +835,7 @@ async def ban(ctx, member: discord.Member, *, reason="Göstərilməyib"):
 
 @bot.command(name="kick")
 async def kick(ctx, member: discord.Member, *, reason="Göstərilməyib"):
-  if (
-      ctx.author.id != OWNER_ID
-      and not ctx.author.guild_permissions.administrator
-  ):
+  if ctx.author.id != OWNER_ID:
     return
   try:
     await member.kick(reason=reason)
@@ -900,4 +852,4 @@ if __name__ == "__main__":
   else:
     print("XƏTA: DISCORD_TOKEN tapılmadı!")
     
- 
+    
