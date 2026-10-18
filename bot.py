@@ -1,11 +1,14 @@
+
 from collections import defaultdict
 import datetime
 import os
 import re
 import time
 from threading import Thread
+import asyncio
 import discord
-from discord.ext import commands
+from discord.ext import commands, tasks
+from discord.ui import Button, View
 from flask import Flask
 
 # --- FLASK SERVER (7/24 UPTIME) ---
@@ -38,6 +41,7 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 OWNER_ID = 641014966312501259
 VOICE_CHANNEL_ID = 123456789012345678  # Sənin səs kanalının ID-si
+TARGET_PANEL_CHANNEL_ID = 1561265942795649024  # Şikayət kanalının ID-si
 
 anti_spam_status = {}
 user_message_counts = defaultdict(list)
@@ -45,12 +49,13 @@ user_last_message = {}
 ban_action_counts = defaultdict(list)
 kick_action_counts = defaultdict(list)
 channel_delete_counts = defaultdict(list)
-caps_warnings = defaultdict(int)
-long_text_warnings = defaultdict(int)
 repeat_warnings = defaultdict(int)
 
-TIME_WINDOW = 15  # Saniyə
-LIMIT = 5  # Anti-Nuke limiti: ən azı 5
+# Biletlər üçün sıra nömrəsi sayğacı (yaddaşda saxlanılır)
+ticket_counter = 0
+
+TIME_WINDOW = 15
+LIMIT = 5
 
 
 def clean_text(text):
@@ -61,7 +66,6 @@ def clean_text(text):
       "3": "e",
       "1": "i",
       "!": "i",
-      "0": "o",
       "5": "s",
       "$": "s",
       "7": "t",
@@ -74,14 +78,135 @@ def clean_text(text):
   return text.replace(" ", "")
 
 
+# --- CANLI STATİSTİKA STATUS DÖVRÜ ---
+@tasks.loop(seconds=10)
+async def update_status():
+  total_members = sum(guild.member_count for guild in bot.guilds)
+  latency = round(bot.latency * 1000)
+
+  activities = [
+      discord.Activity(
+          type=discord.ActivityType.watching,
+          name=f"👥 {total_members} Üzvü qoruyur",
+      ),
+      discord.Activity(
+          type=discord.ActivityType.playing,
+          name="🛡️ Zona Security Systems",
+      ),
+      discord.Activity(
+          type=discord.ActivityType.watching, name=f"🏓 Ping: {latency}ms"
+      ),
+  ]
+
+  for activity in activities:
+    await bot.change_presence(activity=activity)
+    await asyncio.sleep(10)
+
+
+# --- TICKET (ŞİKAYƏT) DÜYMƏ PANELİ VIEW ---
+class TicketButtonView(View):
+
+  def __init__(self):
+    super().__init__(timeout=None)
+
+  @discord.ui.button(
+      label="Şikayət / Dəstək Aç 📩",
+      style=discord.ButtonStyle.blurple,
+      custom_id="open_ticket_button",
+  )
+  async def open_ticket(
+      self, interaction: discord.Interaction, button: discord.Button
+  ):
+    global ticket_counter
+    ticket_counter += 1
+    ticket_name = f"ticket-{ticket_counter:03d}"  # Məsələn: ticket-001, ticket-002
+
+    guild = interaction.guild
+    member = interaction.user
+
+    # İcazələr: Yalnız Owner (və ya adminlər) və bileti açan şəxs görə bilər
+    overwrites = {
+        guild.default_role: discord.PermissionOverwrite(view_channel=False),
+        member: discord.PermissionOverwrite(
+            view_channel=True,
+            send_messages=True,
+            read_message_history=True,
+            attach_files=True,
+        ),
+        guild.get_member(OWNER_ID): discord.PermissionOverwrite(
+            view_channel=True,
+            send_messages=True,
+            read_message_history=True,
+            attach_files=True,
+        ),
+    }
+
+    try:
+      channel = await guild.create_text_channel(
+          name=ticket_name,
+          overwrites=overwrites,
+          reason=f"Şikayət bileti açıldı: {member}",
+      )
+
+      close_view = TicketCloseView()
+
+      embed = discord.Embed(
+          title=f"🎫 Şikayət / Dəstək Mərkəzi | {ticket_name}",
+          description=(
+              f"Salam {member.mention},\nBiletiniz uğurla açıldı! Şikayətinizi"
+              " və ya probleminizi ətraflı şəkildə buraya yazın.\n\nYalnız"
+              " sizə xüsusi olaraq bu kanal açıldı."
+          ),
+          color=0x2b2d31,
+      )
+      embed.set_footer(text=f"Zona Security Systems | Bilet No: {ticket_name}")
+
+      await channel.send(
+          content=f"{member.mention} <@!{OWNER_ID}>",
+          embed=embed,
+          view=close_view,
+      )
+      await interaction.response.send_message(
+          f"✅ Şikayət kanalınız yaradıldı: {channel.mention}", ephemeral=True
+      )
+    except Exception as e:
+      await interaction.response.send_message(
+          "❌ Bilet açılarkən xəta baş verdi!", ephemeral=True
+      )
+
+
+# Biletləri bağlamaq üçün düymə
+class TicketCloseView(View):
+
+  def __init__(self):
+    super().__init__(timeout=None)
+
+  @discord.ui.button(
+      label="Bileti Bağla 🔒",
+      style=discord.ButtonStyle.danger,
+      custom_id="close_ticket_button",
+  )
+  async def close_ticket(
+      self, interaction: discord.Interaction, button: discord.Button
+  ):
+    await interaction.response.send_message(
+        "🔒 Bu bilet 5 saniyə ərzində silinəcək...", ephemeral=False
+    )
+    await asyncio.sleep(5)
+    try:
+      await interaction.channel.delete(reason="Şikayət bilet bağlandı")
+    except:
+      pass
+
+
 # --- BOT HAZIR OLDUQDA ---
 @bot.event
 async def on_ready():
-  activity = discord.Activity(
-      type=discord.ActivityType.watching, name="Zona Təhlükəsizlik Sistemi"
-  )
-  await bot.change_presence(activity=activity)
   print(f"Zona Təhlükəsizlik Botu tam aktivdir: {bot.user}")
+  bot.add_view(TicketButtonView())  # Düymələrin yaddaşda qalması üçün
+
+  if not update_status.is_running():
+    update_status.start()
 
   if not bot.voice_clients:
     try:
@@ -93,7 +218,7 @@ async def on_ready():
       print(f"Səs kanalına qoşularkən xəta: {e}")
 
 
-# --- SESDEN ÇIXANDA GERİ QOŞULMA ---
+# --- SƏSDƏN ÇIXANDA GERİ QOŞULMA ---
 @bot.event
 async def on_voice_state_update(member, before, after):
   if member.id == bot.user.id and after.channel is None:
@@ -112,22 +237,9 @@ async def on_member_join(member):
     now = discord.utils.utcnow()
     account_age = (now - member.created_at).total_seconds()
     if account_age < 86400 and not member.avatar:
-      await member.kick(reason="Zona Anti-Bot: Şübhəli / Yeni yaradılış saxta hesab")
-  except:
-    pass
-
-
-# --- WEBHOOK QORUNMASI ---
-@bot.event
-async def on_webhooks_update(channel):
-  try:
-    async for entry in channel.guild.audit_logs(
-        limit=1, action=discord.AuditLogAction.webhook_create
-    ):
-      if entry.user and entry.user.id != OWNER_ID and not entry.user.bot:
-        member = channel.guild.get_member(entry.user.id)
-        if member and not member.guild_permissions.administrator:
-          pass
+      await member.kick(
+          reason="Zona Anti-Bot: Şübhəli / Yeni yaradılış saxta hesab"
+      )
   except:
     pass
 
@@ -142,12 +254,14 @@ async def on_guild_channel_create(channel):
       if entry.user and entry.user.id != OWNER_ID and not entry.user.bot:
         member = channel.guild.get_member(entry.user.id)
         if member and not member.guild_permissions.administrator:
-          await channel.delete(reason=f"Administrator və ya Sahibdən icazəsiz kanal")
+          await channel.delete(
+              reason="Administrator və ya Sahibdən icazəsiz kanal"
+          )
   except:
     pass
 
 
-# --- ROL YARADILMASI QORUNMASI ---
+# --- ROL YARADILMASI VƏ İCAZƏ DƏYİŞİKLİYİ QORUNMASI ---
 @bot.event
 async def on_guild_role_create(role):
   try:
@@ -157,12 +271,33 @@ async def on_guild_role_create(role):
       if entry.user and entry.user.id != OWNER_ID and not entry.user.bot:
         member = role.guild.get_member(entry.user.id)
         if member and not member.guild_permissions.administrator:
-          await role.delete(reason=f"Administrator və ya Sahibdən icazəsiz rol")
+          await role.delete(reason="Administrator və ya Sahibdən icazəsiz rol")
   except:
     pass
 
 
-# --- ANTİ-NUKE BAN QORUMASI (LİMİT: 5) ---
+@bot.event
+async def on_guild_role_update(before, after):
+  try:
+    async for entry in after.guild.audit_logs(
+        limit=1, action=discord.AuditLogAction.role_update
+    ):
+      if entry.user and entry.user.id != OWNER_ID and not entry.user.bot:
+        member = after.guild.get_member(entry.user.id)
+        if (
+            member
+            and not member.guild_permissions.administrator
+            and (after.permissions.administrator or after.permissions.manage_guild)
+        ):
+          await after.edit(
+              permissions=before.permissions,
+              reason="İcazəsiz səlahiyyət dəyişikliyi bloklandı!",
+          )
+  except:
+    pass
+
+
+# --- ANTİ-NUKE BAN QORUMASI ---
 @bot.event
 async def on_member_ban(guild, user):
   try:
@@ -173,7 +308,9 @@ async def on_member_ban(guild, user):
       if actor and actor.id != OWNER_ID and not actor.bot:
         current_time = time.time()
         ban_action_counts[actor.id] = [
-            t for t in ban_action_counts[actor.id] if current_time - t < TIME_WINDOW
+            t
+            for t in ban_action_counts[actor.id]
+            if current_time - t < TIME_WINDOW
         ]
         ban_action_counts[actor.id].append(current_time)
 
@@ -181,7 +318,9 @@ async def on_member_ban(guild, user):
           member = guild.get_member(actor.id)
           if member:
             try:
-              await member.ban(reason=f"{guild.name}: Anti-Nuke: İcazəsiz kütləvi ban")
+              await member.ban(
+                  reason=f"{guild.name}: Anti-Nuke: İcazəsiz kütləvi ban"
+              )
             except:
               pass
   except:
@@ -220,12 +359,7 @@ async def on_message(message):
       pass
 
   # 2. ZƏRƏRLİ LİNK QORUMASI
-  dangerous_patterns = [
-      "discord.gift/",
-      "free-nitro",
-      "steam-nitro",
-      "nitro",
-  ]
+  dangerous_patterns = ["discord.gift/", "free-nitro", "steam-nitro", "nitro"]
   if any(pattern in cleaned for pattern in dangerous_patterns):
     try:
       await message.delete()
@@ -271,7 +405,7 @@ async def on_message(message):
     except:
       pass
 
-  # 5. SƏRT UYARI İLƏ SÜRƏTLİ MESAJ SPAM QORUMASI
+  # 5. SƏRT UYARI İLƏ SPAM QORUMASI
   author_id = message.author.id
   current_time = time.time()
   user_message_counts[author_id] = [
@@ -322,9 +456,25 @@ async def yardim(ctx):
     return
 
   embed = discord.Embed(
-      title="🛡️ Zona Təhlükəsizlik Sistemi",
+      title="🛡️ Zona Təhlükəsizlik və İdarəetmə Sistemi",
       description="Serverin nizamını və intizamını qoruyur.",
       color=0x2b2d31,
+  )
+  embed.add_field(
+      name="🎫 Şikayət Paneli Qur",
+      value=(
+          "!panel - Şikayət (bilet) açma düyməsini qeyd olunan kanala"
+          " göndərir."
+      ),
+      inline=False,
+  )
+  embed.add_field(
+      name="🎉 Çekiliş",
+      value="!cekilis {dəqiqə} {hədiyyə} - Çekiliş başladır.",
+      inline=False,
+  )
+  embed.add_field(
+      name="📊 Sorğu", value="!sorğu {sual} - Səsvermə yaradır.", inline=False
   )
   embed.add_field(
       name="🔗 Server Url",
@@ -337,37 +487,132 @@ async def yardim(ctx):
       inline=False,
   )
   embed.add_field(
-      name="🔒 Kanal Kilidi",
-      value="!lock / !unlock - Kanalı yazışmaya bağlayır/açır.",
+      name="🔒 Kanal Kilidi / Lockdown",
+      value=(
+          "!lock / !unlock - Kanalı bağlayır/açır.\n!lockdown - Bütün serveri"
+          " kilidləyir."
+      ),
       inline=False,
   )
   embed.add_field(
-      name="🧹 Ümumi Təmizlik",
-      value="!sil {sayı} - Göstərilən sayda mesajı təmizləyir.",
+      name="🧹 Təmizlik",
+      value="!sil {say} | !siluser {@user} {say}",
       inline=False,
   )
   embed.add_field(
-      name="👤 İstifadəçiyə Özəl Təmizlik",
-      value="!siluser {@İstifadəçi} {say} - Müəyyən üzvün mesajlarını təmizləyir.",
-      inline=False,
-  )
-  embed.add_field(
-      name="⏱️ Yavaş Rejim / Slowmode",
-      value="!slowmode {saniyə} - Kanalı saniyə məhdudiyyəti qoyur.",
-      inline=False,
-  )
-  embed.add_field(
-      name="🏓 Ping",
-      value="!ping - Botun gecikmə sürətini yoxlayır.",
-      inline=False,
-  )
-  embed.add_field(
-      name="📊 Server Bilgisi",
-      value="!serverbilgisi - Server haqqında məlumat verir.",
-      inline=False,
+      name="⏱️ Slowmode & Ping", value="!slowmode {san} | !ping", inline=False
   )
   embed.set_footer(text=f"{ctx.guild.name} | Zona Security Systems")
   await ctx.send(embed=embed)
+
+
+# Şikayət panelini həmin xüsusi ID-li kanala göndərir
+@bot.command(name="panel")
+async def panel(ctx):
+  if (
+      ctx.author.id != OWNER_ID
+      and not ctx.author.guild_permissions.administrator
+  ):
+    return
+  try:
+    await ctx.message.delete()
+    target_channel = bot.get_channel(TARGET_PANEL_CHANNEL_ID)
+    if not target_channel:
+      await ctx.send(
+          "❌ Xəta: Şikayət kanalının ID-si tapılmadı!", delete_after=5
+      )
+      return
+
+    embed = discord.Embed(
+        title="🎫 Zona Dəstək və Şikayət Mərkəzi",
+        description=(
+            "Server ilə bağlı hər hansı bir şikayətiniz, sualınız və ya"
+            " probleminiz varsa, aşağıdakı düyməyə basaraq bizimlə"
+            " əlaqə saxlayın.\n\n*Düyməyə basan kimi yalnız sizinlə"
+            " administratorun görə biləcəyi gizli kanal açılacaq!*"
+        ),
+        color=0x2b2d31,
+    )
+    embed.set_footer(text="Zona Security Systems")
+    view = TicketButtonView()
+    await target_channel.send(embed=embed, view=view)
+    await ctx.send("✅ Şikayət paneli uğurla yerləşdirildi!", delete_after=3)
+  except:
+    pass
+
+
+# ÇEKİLİŞ KOMANDASI (!cekilis dəqiqə hədiyyə)
+@bot.command(name="cekilis")
+async def cekilis(ctx, minutes: int, *, prize: str):
+  if (
+      ctx.author.id != OWNER_ID
+      and not ctx.author.guild_permissions.administrator
+  ):
+    return
+  try:
+    await ctx.message.delete()
+    embed = discord.Embed(
+        title="🎉 YENİ ÇEKİLİŞ!",
+        description=(
+            f"Hədiyyə: **{prize}**\nQatılmaq üçün 🎉 emojisinə basın!"
+            f"\nBitmə vaxtı: **{minutes} dəqiqə sonra**"
+        ),
+        color=0xFFD700,
+    )
+    embed.set_footer(
+        text=f"Çekilişi başladan: {ctx.author.name} | Zona Systems"
+    )
+
+    msg = await ctx.send(embed=embed)
+    await msg.add_reaction("🎉")
+
+    await asyncio.sleep(minutes * 60)
+
+    new_msg = await ctx.channel.fetch_message(msg.id)
+    winner = None
+    for reaction in new_msg.reactions:
+      if str(reaction.emoji) == "🎉":
+        users = [user async for user in reaction.users() if not user.bot]
+        if users:
+          import random
+
+          winner = random.choice(users)
+
+    if winner:
+      await ctx.send(
+          f"🏆 **ÇEKİLİŞ BİTDİ!** Təbriklər {winner.mention}! Qazandığın"
+          f" hədiyyə: **{prize}** 🎉"
+      )
+    else:
+      await ctx.send("❌ Çekilişə heç kim qatılmadığı üçün qalib seçilmədi.")
+  except:
+    pass
+
+
+# SORĞU KOMANDASI (!sorğu sual)
+@bot.command(name="sorğu", aliases=["sorqu", "poll"])
+async def sorqu(ctx, *, question: str):
+  if (
+      ctx.author.id != OWNER_ID
+      and not ctx.author.guild_permissions.administrator
+  ):
+    return
+  try:
+    await ctx.message.delete()
+    embed = discord.Embed(
+        title="📊 Səsvermə / Sorğu",
+        description=f"**Sual:** {question}",
+        color=0x00AE86,
+    )
+    embed.set_footer(
+        text=f"Sorğunu yaradan: {ctx.author.name} | Zona Systems"
+    )
+
+    msg = await ctx.send(embed=embed)
+    await msg.add_reaction("👍")
+    await msg.add_reaction("👎")
+  except:
+    pass
 
 
 @bot.command(name="antispam")
@@ -384,203 +629,5 @@ async def antispam(ctx, status: str):
   elif status.lower() == "disable":
     anti_spam_status[guild_id] = False
     await ctx.send("⚠️ Təhlükəsizlik sistemi söndürüldü.")
-  else:
-    await ctx.send(
-        "❌ İstifadə qaydası: `!antispam enable` və ya `!antispam disable`"
-    )
-
-
-@bot.command(name="lock")
-async def lock(ctx):
-  if (
-      ctx.author.id != OWNER_ID
-      and not ctx.author.guild_permissions.administrator
-  ):
-    return
-  try:
-    await ctx.message.delete()
-    await ctx.channel.set_permissions(
-        ctx.guild.default_role, send_messages=False
-    )
-    await ctx.send(
-        f"🔒 Bu kanal ({ctx.channel.name}) təhlükəsizlik protokolu ilə"
-        " kilitləndi.",
-        delete_after=5,
-    )
-  except:
-    pass
-
-
-@bot.command(name="unlock")
-async def unlock(ctx):
-  if (
-      ctx.author.id != OWNER_ID
-      and not ctx.author.guild_permissions.administrator
-  ):
-    return
-  try:
-    await ctx.message.delete()
-    await ctx.channel.set_permissions(
-        ctx.guild.default_role, send_messages=True
-    )
-    await ctx.send(
-        f"🔓 Kanalın kilidi açıldı, {ctx.channel.name} sakinləri yenidən yaza"
-        " bilərsiniz.",
-        delete_after=5,
-    )
-  except:
-    pass
-
-
-@bot.command(name="url")
-async def server_url(ctx):
-  if (
-      ctx.author.id != OWNER_ID
-      and not ctx.author.guild_permissions.administrator
-  ):
-    return
-  if ctx.guild.vanity_url_code:
-    try:
-      vanity = await ctx.guild.vanity_invite()
-      await ctx.send(
-          f"🔗 **{ctx.guild.name} Dəvət Linki:** `discord.gg/{vanity.code}`"
-          f" (**İstifade:** `{vanity.uses}`)"
-      )
-      return
-    except:
-      pass
-  await ctx.send(f"🔗 **{ctx.guild.name} Dəvət Linki:** `discord.gg/zona`")
-
-
-@bot.command(name="sil", aliases=["temizle"])
-async def sil_komanda(ctx, limit: int = 5):
-  if (
-      ctx.author.id != OWNER_ID
-      and not ctx.author.guild_permissions.administrator
-  ):
-    return
-  try:
-    await ctx.message.delete()
-    deleted = await ctx.channel.purge(limit=limit)
-    await ctx.send(
-        f"🧹 **{len(deleted)}** ədəd mesaj təmizləndi.", delete_after=3
-    )
-  except:
-    pass
-
-
-@bot.command(name="siluser")
-async def siluser(ctx, member: discord.Member, limit: int = 10):
-  if (
-      ctx.author.id != OWNER_ID
-      and not ctx.author.guild_permissions.administrator
-  ):
-    return
-  try:
-    await ctx.message.delete()
-    deleted = await ctx.channel.purge(
-        limit=limit, check=lambda m: m.author.id == member.id
-    )
-    await ctx.send(
-        f"🧹 **{member.mention}** istifadəçisinin **{len(deleted)}** ədəd mesajı"
-        " təmizləndi.",
-        delete_after=3,
-    )
-  except:
-    pass
-
-
-@bot.command(name="slowmode", aliases=["yavas"])
-async def slowmode(ctx, seconds: int = 0):
-  if (
-      ctx.author.id != OWNER_ID
-      and not ctx.author.guild_permissions.administrator
-  ):
-    return
-  try:
-    await ctx.message.delete()
-    await ctx.channel.edit(slowmode_delay=seconds)
-    if seconds == 0:
-      await ctx.send(
-          "🟢 Bu kanalda yavaş rejim **söndürüldü**.", delete_after=3
-      )
-    else:
-      await ctx.send(
-          f"🐢 Bu kanalda yavaş rejim **{seconds} saniyə** olaraq"
-          " tənzimləndi.",
-          delete_after=5,
-      )
-  except:
-    pass
-
-
-@bot.command(name="ping")
-async def ping(ctx):
-  if (
-      ctx.author.id != OWNER_ID
-      and not ctx.author.guild_permissions.administrator
-  ):
-    return
-  latency = round(bot.latency * 1000)
-  await ctx.send(f"🏓 Pong! Botun gecikmə sürəti: **{latency}ms**")
-
-
-@bot.command(name="serverbilgisi")
-async def serverbilgisi(ctx):
-  if (
-      ctx.author.id != OWNER_ID
-      and not ctx.author.guild_permissions.administrator
-  ):
-    return
-  guild = ctx.guild
-  embed = discord.Embed(title=f"📊 {guild.name} - Server Məlumatı", color=0x2b2d31)
-  embed.add_field(
-      name="👑 Server Sahib(e)si", value=f"{guild.owner}", inline=True
-  )
-  embed.add_field(name="👥 Üzv Sayı", value=f"{guild.member_count}", inline=True)
-  embed.add_field(
-      name="📅 Yaradılma Tarixi",
-      value=guild.created_at.strftime("%d.%m.%Y"),
-      inline=True,
-  )
-  await ctx.send(embed=embed)
-
-
-@bot.command(name="ban")
-async def ban(ctx, member: discord.Member, *, reason="Göstərilməyib"):
-  if (
-      ctx.author.id != OWNER_ID
-      and not ctx.author.guild_permissions.administrator
-  ):
-    return
-  try:
-    await member.ban(reason=reason)
-    await ctx.send(
-        f"🔨 **{member}** serverdən uzaqlaşdırıldı. Səbəb: **{reason}**"
-    )
-  except:
-    pass
-
-
-@bot.command(name="kick")
-async def kick(ctx, member: discord.Member, *, reason="Göstərilməyib"):
-  if (
-      ctx.author.id != OWNER_ID
-      and not ctx.author.guild_permissions.administrator
-  ):
-    return
-  try:
-    await member.kick(reason=reason)
-    await ctx.send(f"👢 **{member}** serverdən qovuldu. Səbəb: **{reason}**")
-  except:
-    pass
-
-
-if __name__ == "__main__":
-  keep_alive()
-  token = os.getenv("DISCORD_TOKEN")
-  if token:
-    bot.run(token)
-  else:
-    print("XƏTA: DISCORD_TOKEN tapılmadı!")
-  
+else:
+      
