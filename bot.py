@@ -7,7 +7,6 @@ from threading import Thread
 import asyncio
 import discord
 from discord.ext import commands, tasks
-from discord.ui import Button, View
 from flask import Flask
 
 # --- FLASK SERVER (7/24 UPTIME) ---
@@ -39,7 +38,9 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 
 OWNER_ID = 641014966312501259
 VOICE_CHANNEL_ID = 1507834544756101302
-TARGET_PANEL_CHANNEL_ID = 1561265942795649024
+
+# Botun işə düşdüyü vaxtı qeyd edirik (!botbilgi üçün)
+start_time = time.time()
 
 anti_spam_status = {}
 user_message_counts = defaultdict(list)
@@ -48,8 +49,6 @@ ban_action_counts = defaultdict(list)
 kick_action_counts = defaultdict(list)
 channel_delete_counts = defaultdict(list)
 repeat_warnings = defaultdict(int)
-
-ticket_counter = 0
 
 TIME_WINDOW = 15
 LIMIT = 5
@@ -99,118 +98,10 @@ async def update_status():
     await asyncio.sleep(10)
 
 
-# --- TICKET (ŞİKAYƏT) DÜYMƏ PANELİ VIEW ---
-class TicketCloseView(View):
-
-  def __init__(self):
-    super().__init__(timeout=None)
-
-  @discord.ui.button(
-      label="Bileti Bağla 🔒",
-      style=discord.ButtonStyle.danger,
-      custom_id="close_ticket_button",
-  )
-  async def close_ticket(
-      self, interaction: discord.Interaction, button: discord.Button
-  ):
-    await interaction.response.send_message(
-        "🔒 Bu bilet 5 saniyə ərzində silinəcək...", ephemeral=False
-    )
-    await asyncio.sleep(5)
-    try:
-      await interaction.channel.delete(reason="Şikayət bilet bağlandı")
-    except:
-      pass
-
-
-class TicketButtonView(View):
-
-  def __init__(self):
-    super().__init__(timeout=None)
-
-  @discord.ui.button(
-      label="Şikayət / Dəstək Aç 📩",
-      style=discord.ButtonStyle.blurple,
-      custom_id="open_ticket_button",
-  )
-  async def open_ticket(
-      self, interaction: discord.Interaction, button: discord.Button
-  ):
-    guild = interaction.guild
-    member = interaction.user
-
-    for channel in guild.text_channels:
-      if (
-          channel.name.startswith("ticket-")
-          and member in channel.members
-          and channel.overwrites_for(member).view_channel
-      ):
-        await interaction.response.send_message(
-            f"❌ Sənin onsuz da açıq biletin var: {channel.mention}",
-            ephemeral=True,
-        )
-        return
-
-    global ticket_counter
-    ticket_counter += 1
-    ticket_name = f"ticket-{ticket_counter:03d}"
-
-    overwrites = {
-        guild.default_role: discord.PermissionOverwrite(view_channel=False),
-        member: discord.PermissionOverwrite(
-            view_channel=True,
-            send_messages=True,
-            read_message_history=True,
-            attach_files=True,
-        ),
-        guild.get_member(OWNER_ID): discord.PermissionOverwrite(
-            view_channel=True,
-            send_messages=True,
-            read_message_history=True,
-            attach_files=True,
-        ),
-    }
-
-    try:
-      channel = await guild.create_text_channel(
-          name=ticket_name,
-          overwrites=overwrites,
-          reason=f"Şikayət bileti açıldı: {member}",
-      )
-
-      close_view = TicketCloseView()
-
-      embed = discord.Embed(
-          title=f"🎫 Şikayət / Dəstək Mərkəzi | {ticket_name}",
-          description=(
-              f"Salam {member.mention},\nBiletiniz uğurla açıldı! Şikayətinizi"
-              " və ya probleminizi ətraflı şəkildə buraya yazın.\n\n*Bu kanal"
-              " yalnız sizin və sahib üçündür.*"
-          ),
-          color=0x2b2d31,
-      )
-      embed.set_footer(text=f"88x Security Systems | Bilet No: {ticket_name}")
-
-      await channel.send(
-          content=f"{member.mention} <@!{OWNER_ID}>",
-          embed=embed,
-          view=close_view,
-      )
-      await interaction.response.send_message(
-          f"✅ Şikayət kanalınız yaradıldı: {channel.mention}", ephemeral=True
-      )
-    except Exception as e:
-      await interaction.response.send_message(
-          "❌ Bilet açılarkən xəta baş verdi!", ephemeral=True
-      )
-
-
 # --- BOT HAZIR OLDUQDA ---
 @bot.event
 async def on_ready():
   print(f"88x Təhlükəsizlik Botu tam aktivdir: {bot.user}")
-  bot.add_view(TicketButtonView())
-  bot.add_view(TicketCloseView())
 
   if not update_status.is_running():
     update_status.start()
@@ -450,14 +341,6 @@ async def yardim(ctx):
       color=0x2b2d31,
   )
   embed.add_field(
-      name="🎫 Şikayət Paneli Qur",
-      value=(
-          "!panel - Şikayət (bilet) açma düyməsini qeyd olunan kanala"
-          " göndərir."
-      ),
-      inline=False,
-  )
-  embed.add_field(
       name="🎉 Çekiliş",
       value="!cekilis {dəqiqə} {hədiyyə} - Çekiliş başladır.",
       inline=False,
@@ -489,39 +372,70 @@ async def yardim(ctx):
       inline=False,
   )
   embed.add_field(
-      name="⏱️ Slowmode & Ping", value="!slowmode {san} | !ping", inline=False
+      name="⏱️ Slowmode & Ping & Bot Bilgi",
+      value="!slowmode {san} | !ping | !botbilgi",
+      inline=False,
+  )
+  embed.add_field(
+      name="😀 Emojilərin Adını Dəyiş",
+      value="!emojinickdeyis {yeni_ad} - Serverdəki bütün emojilərin adını dəyişir.",
+      inline=False,
   )
   embed.set_footer(text=f"{ctx.guild.name} | 88x Security Systems")
   await ctx.send(embed=embed)
 
 
-@bot.command(name="panel")
-async def panel(ctx):
+@bot.command(name="botbilgi")
+async def botbilgi(ctx):
   if ctx.author.id != OWNER_ID:
     return
   try:
     await ctx.message.delete()
-    target_channel = bot.get_channel(TARGET_PANEL_CHANNEL_ID)
-    if not target_channel:
-      await ctx.send(
-          "❌ Xəta: Şikayət kanalının ID-si tapılmadı!", delete_after=5
-      )
-      return
+    uptime_seconds = int(time.time() - start_time)
+    hours, remainder = divmod(uptime_seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    latency = round(bot.latency * 1000)
 
     embed = discord.Embed(
-        title="🎫 88x Dəstək və Şikayət Mərkəzi",
-        description=(
-            "Server ilə bağlı hər hansı bir şikayətiniz, sualınız və ya"
-            " probleminiz varsa, aşağıdakı düyməyə basaraq bizimlə"
-            " əlaqə saxlayın.\n\n*Düyməyə basan kimi yalnız sizinlə"
-            " sahibin görə biləcəyi nömrələnmiş gizli kanal açılacaq!*"
-        ),
-        color=0x2b2d31,
+        title="🤖 88x Security Systems — Bot Məlumatı", color=0x2b2d31
     )
-    embed.set_footer(text="88x Security Systems")
-    view = TicketButtonView()
-    await target_channel.send(embed=embed, view=view)
-    await ctx.send("✅ Şikayət paneli uğurla yerləşdirildi!", delete_after=3)
+    embed.add_field(
+        name="⏳ İşləmə Müddəti (Uptime)",
+        value=f"`{hours} saat, {minutes} dəqiqə`",
+        inline=True,
+    )
+    embed.add_field(
+        name="🏓 Gecikmə (Ping)", value=f"`{latency}ms`", inline=True
+    )
+    embed.add_field(
+        name="👥 Xidmət Etdiyi Server",
+        value=f"`{len(bot.guilds)} server`",
+        inline=True,
+    )
+    embed.set_footer(text=f"{ctx.guild.name} | 88x Security Systems")
+    await ctx.send(embed=embed, delete_after=15)
+  except:
+    pass
+
+
+@bot.command(name="emojinickdeyis")
+async def emojinickdeyis(ctx, yeni_ad: str):
+  if ctx.author.id != OWNER_ID:
+    return
+  try:
+    await ctx.message.delete()
+    say = 0
+    for emoji in ctx.guild.emojis:
+      try:
+        await emoji.edit(name=yeni_ad)
+        say += 1
+      except:
+        pass
+    await ctx.send(
+        f"✅ Uğurla **{say}** ədəd emojinin adı **{yeni_ad}** olaraq"
+        " dəyişdirildi!",
+        delete_after=5,
+    )
   except:
     pass
 
@@ -714,6 +628,7 @@ async def server_url(ctx):
   except:
     pass
 
+
 @bot.command(name="sil", aliases=["temizle"])
 async def sil_komanda(ctx, limit: int = 5):
   if ctx.author.id != OWNER_ID:
@@ -824,4 +739,4 @@ if __name__ == "__main__":
     bot.run(token)
   else:
     print("XƏTA: DISCORD_TOKEN tapılmadı!")
-    
+        
