@@ -1,4 +1,3 @@
-
 from collections import defaultdict
 import datetime
 import os
@@ -40,7 +39,7 @@ intents.voice_states = True
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 OWNER_ID = 641014966312501259
-VOICE_CHANNEL_ID = 123456789012345678  # Sənin səs kanalının ID-si
+VOICE_CHANNEL_ID = 1507834544756101302  # Sənin səs kanalının ID-si
 TARGET_PANEL_CHANNEL_ID = 1561265942795649024  # Şikayət kanalının ID-si
 
 anti_spam_status = {}
@@ -124,7 +123,7 @@ class TicketButtonView(View):
     guild = interaction.guild
     member = interaction.user
 
-    # İcazələr: Yalnız Owner (və ya adminlər) və bileti açan şəxs görə bilər
+    # İcazələr: Yalnız Owner və bileti açan şəxs görə bilər
     overwrites = {
         guild.default_role: discord.PermissionOverwrite(view_channel=False),
         member: discord.PermissionOverwrite(
@@ -506,7 +505,6 @@ async def yardim(ctx):
   await ctx.send(embed=embed)
 
 
-# Şikayət panelini həmin xüsusi ID-li kanala göndərir
 @bot.command(name="panel")
 async def panel(ctx):
   if (
@@ -629,5 +627,236 @@ async def antispam(ctx, status: str):
   elif status.lower() == "disable":
     anti_spam_status[guild_id] = False
     await ctx.send("⚠️ Təhlükəsizlik sistemi söndürüldü.")
-else:
-      
+  else:
+    await ctx.send(
+        "❌ İstifadə qaydası: `!antispam enable` və ya `!antispam disable`"
+    )
+
+
+@bot.command(name="lock")
+async def lock(ctx):
+  if (
+      ctx.author.id != OWNER_ID
+      and not ctx.author.guild_permissions.administrator
+  ):
+    return
+  try:
+    await ctx.message.delete()
+    await ctx.channel.set_permissions(
+        ctx.guild.default_role, send_messages=False
+    )
+    await ctx.send(
+        f"🔒 Bu kanal ({ctx.channel.name}) təhlükəsizlik protokolu ilə"
+        " kilitləndi.",
+        delete_after=5,
+    )
+  except:
+    pass
+
+
+@bot.command(name="unlock")
+async def unlock(ctx):
+  if (
+      ctx.author.id != OWNER_ID
+      and not ctx.author.guild_permissions.administrator
+  ):
+    return
+  try:
+    await ctx.message.delete()
+    await ctx.channel.set_permissions(
+        ctx.guild.default_role, send_messages=True
+    )
+    await ctx.send(
+        f"🔓 Kanalın kilidi açıldı, {ctx.channel.name} sakinləri yenidən yaza"
+        " bilərsiniz.",
+        delete_after=5,
+    )
+  except:
+    pass
+
+
+@bot.command(name="lockdown")
+async def lockdown(ctx):
+  if (
+      ctx.author.id != OWNER_ID
+      and not ctx.author.guild_permissions.administrator
+  ):
+    return
+  try:
+    await ctx.message.delete()
+    guild = ctx.guild
+    current_perms = guild.default_role.permissions.send_messages
+    new_status = not current_perms
+    for channel in guild.text_channels:
+      await channel.set_permissions(
+          guild.default_role, send_messages=new_status
+      )
+
+    if new_status:
+      await ctx.send(
+          "🔓 **FÖVQƏLADƏ VƏZİYYƏT LƏĞV OLUNDU!** Bütün kanalların kilidi"
+          " açıldı.",
+          delete_after=10,
+      )
+    else:
+      await ctx.send(
+          "🚨 **FÖVQƏLADƏ VƏZİYYƏT (LOCKDOWN) AKTİVLƏŞDİRİLDİ!** Bütün"
+          " kanallar yazışmaya bağlandı!",
+          delete_after=10,
+      )
+  except:
+    pass
+
+
+@bot.command(name="url")
+async def server_url(ctx):
+  if (
+      ctx.author.id != OWNER_ID
+      and not ctx.author.guild_permissions.administrator
+  ):
+    return
+  if ctx.guild.vanity_url_code:
+    try:
+      vanity = await ctx.guild.vanity_invite()
+      await ctx.send(
+          f"🔗 **{ctx.guild.name} Dəvət Linki:** `discord.gg/{vanity.code}`"
+          f" (**İstifade:** `{vanity.uses}`)"
+      )
+      return
+    except:
+      pass
+  await ctx.send(f"🔗 **{ctx.guild.name} Dəvət Linki:** `discord.gg/zona`")
+
+
+@bot.command(name="sil", aliases=["temizle"])
+async def sil_komanda(ctx, limit: int = 5):
+  if (
+      ctx.author.id != OWNER_ID
+      and not ctx.author.guild_permissions.administrator
+  ):
+    return
+  try:
+    await ctx.message.delete()
+    deleted = await ctx.channel.purge(limit=limit)
+    await ctx.send(
+        f"🧹 **{len(deleted)}** ədəd mesaj təmizləndi.", delete_after=3
+    )
+  except:
+    pass
+
+
+@bot.command(name="siluser")
+async def siluser(ctx, member: discord.Member, limit: int = 10):
+  if (
+      ctx.author.id != OWNER_ID
+      and not ctx.author.guild_permissions.administrator
+  ):
+    return
+  try:
+    await ctx.message.delete()
+    deleted = await ctx.channel.purge(
+        limit=limit, check=lambda m: m.author.id == member.id
+    )
+    await ctx.send(
+        f"🧹 **{member.mention}** istifadəçisinin **{len(deleted)}** ədəd mesajı"
+        " təmizləndi.",
+        delete_after=3,
+    )
+  except:
+    pass
+
+
+@bot.command(name="slowmode", aliases=["yavas"])
+async def slowmode(ctx, seconds: int = 0):
+  if (
+      ctx.author.id != OWNER_ID
+      and not ctx.author.guild_permissions.administrator
+  ):
+    return
+  try:
+    await ctx.message.delete()
+    await ctx.channel.edit(slowmode_delay=seconds)
+    if seconds == 0:
+      await ctx.send(
+          "🟢 Bu kanalda yavaş rejim **söndürüldü**.", delete_after=3
+      )
+    else:
+      await ctx.send(
+          f"🐢 Bu kanalda yavaş rejim **{seconds} saniyə** olaraq"
+          " tənzimləndi.",
+          delete_after=5,
+      )
+  except:
+    pass
+
+
+@bot.command(name="ping")
+async def ping(ctx):
+  if (
+      ctx.author.id != OWNER_ID
+      and not ctx.author.guild_permissions.administrator
+  ):
+    return
+  latency = round(bot.latency * 1000)
+  await ctx.send(f"🏓 Pong! Botun gecikmə sürəti: **{latency}ms**")
+
+
+@bot.command(name="serverbilgisi")
+async def serverbilgisi(ctx):
+  if (
+      ctx.author.id != OWNER_ID
+      and not ctx.author.guild_permissions.administrator
+  ):
+    return
+  guild = ctx.guild
+  embed = discord.Embed(title=f"📊 {guild.name} - Server Məlumatı", color=0x2b2d31)
+  embed.add_field(
+      name="👑 Server Sahib(e)si", value=f"{guild.owner}", inline=True
+  )
+  embed.add_field(name="👥 Üzv Sayı", value=f"{guild.member_count}", inline=True)
+  embed.add_field(
+      name="📅 Yaradılma Tarixi",
+      value=guild.created_at.strftime("%d.%m.%Y"),
+      inline=True,
+  )
+  await ctx.send(embed=embed)
+
+
+@bot.command(name="ban")
+async def ban(ctx, member: discord.Member, *, reason="Göstərilməyib"):
+  if (
+      ctx.author.id != OWNER_ID
+      and not ctx.author.guild_permissions.administrator
+  ):
+    return
+  try:
+    await member.ban(reason=reason)
+    await ctx.send(
+        f"🔨 **{member}** serverdən uzaqlaşdırıldı. Səbəb: **{reason}**"
+    )
+  except:
+    pass
+
+
+@bot.command(name="kick")
+async def kick(ctx, member: discord.Member, *, reason="Göstərilməyib"):
+  if (
+      ctx.author.id != OWNER_ID
+      and not ctx.author.guild_permissions.administrator
+  ):
+    return
+  try:
+    await member.kick(reason=reason)
+    await ctx.send(f"👢 **{member}** serverdən qovuldu. Səbəb: **{reason}**")
+  except:
+    pass
+
+
+if __name__ == "__main__":
+  keep_alive()
+  token = os.getenv("DISCORD_TOKEN")
+  if token:
+    bot.run(token)
+  else:
+    print("XƏTA: DISCORD_TOKEN tapılmadı!")
+    
