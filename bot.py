@@ -100,6 +100,29 @@ async def update_status():
 
 
 # --- TICKET (ŞİKAYƏT) DÜYMƏ PANELİ VIEW ---
+class TicketCloseView(View):
+
+  def __init__(self):
+    super().__init__(timeout=None)
+
+  @discord.ui.button(
+      label="Bileti Bağla 🔒",
+      style=discord.ButtonStyle.danger,
+      custom_id="close_ticket_button",
+  )
+  async def close_ticket(
+      self, interaction: discord.Interaction, button: discord.Button
+  ):
+    await interaction.response.send_message(
+        "🔒 Bu bilet 5 saniyə ərzində silinəcək...", ephemeral=False
+    )
+    await asyncio.sleep(5)
+    try:
+      await interaction.channel.delete(reason="Şikayət bilet bağlandı")
+    except:
+      pass
+
+
 class TicketButtonView(View):
 
   def __init__(self):
@@ -182,56 +205,15 @@ class TicketButtonView(View):
       )
 
 
-class TicketCloseView(View):
-
-  def __init__(self):
-    super().__init__(timeout=None)
-
-  @discord.ui.button(
-      label="Bileti Bağla 🔒",
-      style=discord.ButtonStyle.danger,
-      custom_id="close_ticket_button",
-  )
-  async def close_ticket(
-      self, interaction: discord.Interaction, button: discord.Button
-  ):
-    await interaction.response.send_message(
-        "🔒 Bu bilet 5 saniyə ərzində silinəcək...", ephemeral=False
-    )
-    await asyncio.sleep(5)
-    try:
-      await interaction.channel.delete(reason="Şikayət bilet bağlandı")
-    except:
-      pass
-
-
 # --- BOT HAZIR OLDUQDA ---
 @bot.event
 async def on_ready():
   print(f"Zona Təhlükəsizlik Botu tam aktivdir: {bot.user}")
   bot.add_view(TicketButtonView())
+  bot.add_view(TicketCloseView())
 
   if not update_status.is_running():
     update_status.start()
-
-  try:
-    target_channel = bot.get_channel(TARGET_PANEL_CHANNEL_ID)
-    if target_channel:
-      embed = discord.Embed(
-          title="🎫 Zona Dəstək və Şikayət Mərkəzi",
-          description=(
-              "Server ilə bağlı hər hansı bir şikayətiniz, sualınız və ya"
-              " probleminiz varsa, aşağıdakı düyməyə basaraq bizimlə"
-              " əlaqə saxlayın.\n\n*Düyməyə basan kimi yalnız sizinlə"
-              " sahibin görə biləcəyi nömrələnmiş gizli kanal açılacaq!*"
-          ),
-          color=0x2b2d31,
-      )
-      embed.set_footer(text="Zona Security Systems")
-      view = TicketButtonView()
-      await target_channel.send(embed=embed, view=view)
-  except:
-    pass
 
   if not bot.voice_clients:
     try:
@@ -752,7 +734,6 @@ async def sil_komanda(ctx, limit: int = 5):
   except:
     pass
 
-
 @bot.command(name="siluser")
 async def siluser(ctx, member: discord.Member, limit: int = 10):
   if ctx.author.id != OWNER_ID:
@@ -850,4 +831,3 @@ if __name__ == "__main__":
   else:
     print("XƏTA: DISCORD_TOKEN tapılmadı!")
     
-  
