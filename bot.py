@@ -87,7 +87,7 @@ async def update_status():
       ),
       discord.Activity(
           type=discord.ActivityType.playing,
-          name="🛡️ Zona Security Systems",
+          name="🛡️ 88x Security Systems",
       ),
       discord.Activity(
           type=discord.ActivityType.watching, name=f"🏓 Ping: {latency}ms"
@@ -189,7 +189,7 @@ class TicketButtonView(View):
           ),
           color=0x2b2d31,
       )
-      embed.set_footer(text=f"Zona Security Systems | Bilet No: {ticket_name}")
+      embed.set_footer(text=f"88x Security Systems | Bilet No: {ticket_name}")
 
       await channel.send(
           content=f"{member.mention} <@!{OWNER_ID}>",
@@ -208,7 +208,7 @@ class TicketButtonView(View):
 # --- BOT HAZIR OLDUQDA ---
 @bot.event
 async def on_ready():
-  print(f"Zona Təhlükəsizlik Botu tam aktivdir: {bot.user}")
+  print(f"88x Təhlükəsizlik Botu tam aktivdir: {bot.user}")
   bot.add_view(TicketButtonView())
   bot.add_view(TicketCloseView())
 
@@ -242,9 +242,7 @@ async def on_member_join(member):
     now = discord.utils.utcnow()
     account_age = (now - member.created_at).total_seconds()
     if account_age < 86400 and not member.avatar:
-      await member.kick(
-          reason="Zona Anti-Bot: Şübhəli / Yeni yaradılış saxta hesab"
-      )
+      await member.kick(reason="88x Anti-Bot: Şübhəli / Yeni yaradılış saxta hesab")
   except:
     pass
 
@@ -447,7 +445,7 @@ async def yardim(ctx):
     return
 
   embed = discord.Embed(
-      title="🛡️ Zona Təhlükəsizlik və İdarəetmə Sistemi",
+      title="🛡️ 88x Təhlükəsizlik və İdarəetmə Sistemi",
       description="Serverin nizamını və intizamını qoruyur.",
       color=0x2b2d31,
   )
@@ -493,7 +491,7 @@ async def yardim(ctx):
   embed.add_field(
       name="⏱️ Slowmode & Ping", value="!slowmode {san} | !ping", inline=False
   )
-  embed.set_footer(text=f"{ctx.guild.name} | Zona Security Systems")
+  embed.set_footer(text=f"{ctx.guild.name} | 88x Security Systems")
   await ctx.send(embed=embed)
 
 
@@ -511,7 +509,7 @@ async def panel(ctx):
       return
 
     embed = discord.Embed(
-        title="🎫 Zona Dəstək və Şikayət Mərkəzi",
+        title="🎫 88x Dəstək və Şikayət Mərkəzi",
         description=(
             "Server ilə bağlı hər hansı bir şikayətiniz, sualınız və ya"
             " probleminiz varsa, aşağıdakı düyməyə basaraq bizimlə"
@@ -520,7 +518,7 @@ async def panel(ctx):
         ),
         color=0x2b2d31,
     )
-    embed.set_footer(text="Zona Security Systems")
+    embed.set_footer(text="88x Security Systems")
     view = TicketButtonView()
     await target_channel.send(embed=embed, view=view)
     await ctx.send("✅ Şikayət paneli uğurla yerləşdirildi!", delete_after=3)
@@ -542,9 +540,7 @@ async def cekilis(ctx, minutes: int, *, prize: str):
         ),
         color=0xFFD700,
     )
-    embed.set_footer(
-        text=f"Çekilişi başladan: {ctx.author.name} | Zona Systems"
-    )
+    embed.set_footer(text=f"Çekilişi başladan: {ctx.author.name} | 88x Systems")
 
     msg = await ctx.send(embed=embed)
     await msg.add_reaction("🎉")
@@ -583,9 +579,7 @@ async def sorqu(ctx, *, question: str):
         description=f"**Sual:** {question}",
         color=0x00AE86,
     )
-    embed.set_footer(
-        text=f"Sorğunu yaradan: {ctx.author.name} | Zona Systems"
-    )
+    embed.set_footer(text=f"Sorğunu yaradan: {ctx.author.name} | 88x Systems")
 
     msg = await ctx.send(embed=embed)
     await msg.add_reaction("👍")
@@ -715,11 +709,10 @@ async def server_url(ctx):
     if guild.icon:
       embed.set_thumbnail(url=guild.icon.url)
 
-    embed.set_footer(text=f"{guild.name} | Zona Security Systems")
+    embed.set_footer(text=f"{guild.name} | 88x Security Systems")
     await ctx.send(embed=embed, delete_after=20)
   except:
     pass
-
 
 @bot.command(name="sil", aliases=["temizle"])
 async def sil_komanda(ctx, limit: int = 5):
@@ -733,6 +726,7 @@ async def sil_komanda(ctx, limit: int = 5):
     )
   except:
     pass
+
 
 @bot.command(name="siluser")
 async def siluser(ctx, member: discord.Member, limit: int = 10):
