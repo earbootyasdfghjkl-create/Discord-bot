@@ -39,7 +39,6 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 OWNER_ID = 641014966312501259
 VOICE_CHANNEL_ID = 1507834544756101302
 
-# Botun işə düşdüyü vaxtı qeyd edirik (!botbilgi üçün)
 start_time = time.time()
 
 anti_spam_status = {}
@@ -82,11 +81,11 @@ async def update_status():
   activities = [
       discord.Activity(
           type=discord.ActivityType.watching,
-          name="👀 Leo sizi izliyor",
+          name="👀 exlaqsiz sizi izliyor",
       ),
       discord.Activity(
           type=discord.ActivityType.playing,
-          name="🛡️ 88x Security Systems",
+          name="🛡️ exlaqsiz Security",
       ),
       discord.Activity(
           type=discord.ActivityType.watching, name=f"🏓 Ping: {latency}ms"
@@ -101,7 +100,7 @@ async def update_status():
 # --- BOT HAZIR OLDUQDA ---
 @bot.event
 async def on_ready():
-  print(f"88x Təhlükəsizlik Botu tam aktivdir: {bot.user}")
+  print(f"exlaqsiz Bot tam aktivdir: {bot.user}")
 
   if not update_status.is_running():
     update_status.start()
@@ -111,9 +110,8 @@ async def on_ready():
       channel = bot.get_channel(VOICE_CHANNEL_ID)
       if channel and isinstance(channel, discord.VoiceChannel):
         await channel.connect(reconnect=True, self_deaf=True)
-        print(f"Bot {channel.name} səs kanalına 7/24 daxil oldu!")
-    except Exception as e:
-      print(f"Səs kanalına qoşularkən xəta: {e}")
+    except:
+      pass
 
 
 @bot.event
@@ -133,7 +131,7 @@ async def on_member_join(member):
     now = discord.utils.utcnow()
     account_age = (now - member.created_at).total_seconds()
     if account_age < 86400 and not member.avatar:
-      await member.kick(reason="88x Anti-Bot: Şübhəli / Yeni yaradılış saxta hesab")
+      await member.kick(reason="exlaqsiz Anti-Bot: Şübhəli hesab")
   except:
     pass
 
@@ -207,9 +205,7 @@ async def on_member_ban(guild, user):
           member = guild.get_member(actor.id)
           if member:
             try:
-              await member.ban(
-                  reason=f"{guild.name}: Anti-Nuke: İcazəsiz kütləvi ban"
-              )
+              await member.ban(reason=f"{guild.name}: Anti-Nuke")
             except:
               pass
   except:
@@ -250,10 +246,10 @@ async def on_message(message):
     try:
       await message.delete()
       until = discord.utils.utcnow() + datetime.timedelta(minutes=1)
-      await message.author.timeout(until, reason="Zərərli / Phishing Link")
+      await message.author.timeout(until, reason="Zərərli Link")
       warn_msg = await message.channel.send(
-          f"{message.author.mention}, şübhəli link paylaşdığı üçün 1 dəqiqə"
-          " timeout aldı!"
+          f"{message.author.mention}, şübhəli link paylaşdığı üçün timeout"
+          " aldı!"
       )
       await warn_msg.delete(delay=5)
       return
@@ -282,7 +278,7 @@ async def on_message(message):
     try:
       await message.delete()
       warn_msg = await message.channel.send(
-          f"{message.author.mention}, başqa serverin reklamını etmək qadağandır!"
+          f"{message.author.mention}, reklam etmək qadağandır!"
       )
       await warn_msg.delete(delay=5)
       return
@@ -317,9 +313,7 @@ async def on_message(message):
             f"{message.author.mention} yavaş yaz [uyarı 3]"
         )
         until = discord.utils.utcnow() + datetime.timedelta(minutes=5)
-        await message.author.timeout(
-            until, reason="Spam və xəbərdarlıqlara məhəl qoymamaq"
-        )
+        await message.author.timeout(until, reason="Spam")
         repeat_warnings[author_id] = 0
         await warn_msg.delete(delay=5)
       return
@@ -336,52 +330,25 @@ async def yardim(ctx):
     return
 
   embed = discord.Embed(
-      title="🛡️ 88x Təhlükəsizlik və İdarəetmə Sistemi",
-      description="Serverin nizamını və intizamını qoruyur.",
+      title="🛡️ exlaqsiz Təhlükəsizlik və İdarəetmə",
+      description="Serverin nizamını qoruyur.",
       color=0x2b2d31,
   )
   embed.add_field(
-      name="🎉 Çekiliş",
-      value="!cekilis {dəqiqə} {hədiyyə} - Çekiliş başladır.",
-      inline=False,
+      name="🎉 Çekiliş", value="!cekilis {dəqiqə} {hədiyyə}", inline=False
   )
+  embed.add_field(name="📊 Sorğu", value="!sorğu {sual}", inline=False)
+  embed.add_field(name="🔗 Server Url", value="!url", inline=False)
   embed.add_field(
-      name="📊 Sorğu", value="!sorğu {sual} - Səsvermə yaradır.", inline=False
+      name="🛡️ Anti-Spam", value="!antispam enable / disable", inline=False
   )
+  embed.add_field(name="🔒 Kilid", value="!lock / !unlock / !lockdown", inline=False)
+  embed.add_field(name="🧹 Təmizlik", value="!sil {say} | !siluser", inline=False)
   embed.add_field(
-      name="🔗 Server Url",
-      value="!url - Serverin dəvət linkini göstərir.",
-      inline=False,
+      name="⏱️ Digər", value="!slowmode {san} | !ping | !botbilgi", inline=False
   )
-  embed.add_field(
-      name="🛡️ Anti-Spam",
-      value="!antispam enable / disable - Mühafizəni idarə edir.",
-      inline=False,
-  )
-  embed.add_field(
-      name="🔒 Kanal Kilidi / Lockdown",
-      value=(
-          "!lock / !unlock - Kanalı bağlayır/açır.\n!lockdown - Bütün serveri"
-          " kilidləyir."
-      ),
-      inline=False,
-  )
-  embed.add_field(
-      name="🧹 Təmizlik",
-      value="!sil {say} | !siluser {@user} {say}",
-      inline=False,
-  )
-  embed.add_field(
-      name="⏱️ Slowmode & Ping & Bot Bilgi",
-      value="!slowmode {san} | !ping | !botbilgi",
-      inline=False,
-  )
-  embed.add_field(
-      name="😀 Emojilərin Adını Dəyiş",
-      value="!emojinickdeyis {yeni_ad} - Serverdəki bütün emojilərin adını dəyişir.",
-      inline=False,
-  )
-  embed.set_footer(text=f"{ctx.guild.name} | 88x Security Systems")
+  embed.add_field(name="😀 Emojilər", value="!emojinickdeyis {ad}", inline=False)
+  embed.set_footer(text=f"{ctx.guild.name} | exlaqsiz Systems")
   await ctx.send(embed=embed)
 
 
@@ -397,22 +364,16 @@ async def botbilgi(ctx):
     latency = round(bot.latency * 1000)
 
     embed = discord.Embed(
-        title="🤖 88x Security Systems — Bot Məlumatı", color=0x2b2d31
+        title="🤖 exlaqsiz Bot Məlumatı", color=0x2b2d31
     )
     embed.add_field(
-        name="⏳ İşləmə Müddəti (Uptime)",
-        value=f"`{hours} saat, {minutes} dəqiqə`",
-        inline=True,
+        name="⏳ Uptime", value=f"`{hours} saat, {minutes} dəqiqə`", inline=True
     )
+    embed.add_field(name="🏓 Ping", value=f"`{latency}ms`", inline=True)
     embed.add_field(
-        name="🏓 Gecikmə (Ping)", value=f"`{latency}ms`", inline=True
+        name="👥 Server Sayı", value=f"`{len(bot.guilds)} server`", inline=True
     )
-    embed.add_field(
-        name="👥 Xidmət Etdiyi Server",
-        value=f"`{len(bot.guilds)} server`",
-        inline=True,
-    )
-    embed.set_footer(text=f"{ctx.guild.name} | 88x Security Systems")
+    embed.set_footer(text=f"{ctx.guild.name} | exlaqsiz")
     await ctx.send(embed=embed, delete_after=15)
   except:
     pass
@@ -432,8 +393,7 @@ async def emojinickdeyis(ctx, yeni_ad: str):
       except:
         pass
     await ctx.send(
-        f"✅ Uğurla **{say}** ədəd emojinin adı **{yeni_ad}** olaraq"
-        " dəyişdirildi!",
+        f"✅ Uğurla **{say}** ədəd emojinin adı **{yeni_ad}** oldu!",
         delete_after=5,
     )
   except:
@@ -448,13 +408,10 @@ async def cekilis(ctx, minutes: int, *, prize: str):
     await ctx.message.delete()
     embed = discord.Embed(
         title="🎉 YENİ ÇEKİLİŞ!",
-        description=(
-            f"Hədiyyə: **{prize}**\nQatılmaq üçün 🎉 emojisinə basın!"
-            f"\nBitmə vaxtı: **{minutes} dəqiqə sonra**"
-        ),
+        description=f"Hədiyyə: **{prize}**\nBitmə vaxtı: **{minutes} dəqiqə**",
         color=0xFFD700,
     )
-    embed.set_footer(text=f"Çekilişi başladan: {ctx.author.name} | 88x Systems")
+    embed.set_footer(text="exlaqsiz Systems")
 
     msg = await ctx.send(embed=embed)
     await msg.add_reaction("🎉")
@@ -473,11 +430,10 @@ async def cekilis(ctx, minutes: int, *, prize: str):
 
     if winner:
       await ctx.send(
-          f"🏆 **ÇEKİLİŞ BİTDİ!** Təbriklər {winner.mention}! Qazandığın"
-          f" hədiyyə: **{prize}** 🎉"
+          f"🏆 Qalib: {winner.mention}! Qazandığın hədiyyə: **{prize}** 🎉"
       )
     else:
-      await ctx.send("❌ Çekilişə heç kim qatılmadığı üçün qalib seçilmədi.")
+      await ctx.send("❌ Qalib seçilmədi.")
   except:
     pass
 
@@ -489,11 +445,9 @@ async def sorqu(ctx, *, question: str):
   try:
     await ctx.message.delete()
     embed = discord.Embed(
-        title="📊 Səsvermə / Sorğu",
-        description=f"**Sual:** {question}",
-        color=0x00AE86,
+        title="📊 Səsvermə", description=f"**Sual:** {question}", color=0x00AE86
     )
-    embed.set_footer(text=f"Sorğunu yaradan: {ctx.author.name} | 88x Systems")
+    embed.set_footer(text="exlaqsiz Systems")
 
     msg = await ctx.send(embed=embed)
     await msg.add_reaction("👍")
@@ -514,9 +468,7 @@ async def antispam(ctx, status: str):
     anti_spam_status[guild_id] = False
     await ctx.send("⚠️ Təhlükəsizlik sistemi söndürüldü.")
   else:
-    await ctx.send(
-        "❌ İstifadə qaydası: `!antispam enable` və ya `!antispam disable`"
-    )
+    await ctx.send("❌ `!antispam enable` / `!antispam disable`")
 
 
 @bot.command(name="lock")
@@ -528,11 +480,7 @@ async def lock(ctx):
     await ctx.channel.set_permissions(
         ctx.guild.default_role, send_messages=False
     )
-    await ctx.send(
-        f"🔒 Bu kanal ({ctx.channel.name}) təhlükəsizlik protokolu ilə"
-        " kilitləndi.",
-        delete_after=5,
-    )
+    await ctx.send("🔒 Kanal kilitləndi.", delete_after=5)
   except:
     pass
 
@@ -546,11 +494,7 @@ async def unlock(ctx):
     await ctx.channel.set_permissions(
         ctx.guild.default_role, send_messages=True
     )
-    await ctx.send(
-        f"🔓 Kanalın kilidi açıldı, {ctx.channel.name} sakinləri yenidən yaza"
-        " bilərsiniz.",
-        delete_after=5,
-    )
+    await ctx.send("🔓 Kanalın kilidi açıldı.", delete_after=5)
   except:
     pass
 
@@ -570,17 +514,9 @@ async def lockdown(ctx):
       )
 
     if new_status:
-      await ctx.send(
-          "🔓 **FÖVQƏLADƏ VƏZİYYƏT LƏĞV OLUNDU!** Bütün kanalların kilidi"
-          " açıldı.",
-          delete_after=10,
-      )
+      await ctx.send("🔓 Fövqəladə vəziyyət ləğv olundu.", delete_after=10)
     else:
-      await ctx.send(
-          "🚨 **FÖVQƏLADƏ VƏZİYYƏT (LOCKDOWN) AKTİVLƏŞDİRİLDİ!** Bütün"
-          " kanallar yazışmaya bağlandı!",
-          delete_after=10,
-      )
+      await ctx.send("🚨 Fövqəladə vəziyyət aktivdir!", delete_after=10)
   except:
     pass
 
@@ -604,26 +540,13 @@ async def server_url(ctx):
         pass
 
     embed = discord.Embed(
-        title=f"🔗 {guild.name} — Server Dəvət Mərkəzi",
-        description=(
-            f"Serverimizin rəsmi və qalıcı dəvət linki:\n👉 **[{invite_link}](https://{invite_link})**"
-        ),
+        title=f"🔗 {guild.name} — Dəvət Mərkəzi",
+        description=f"Dəvət linki:\n👉 **[{invite_link}](https://{invite_link})**",
         color=0x2b2d31,
     )
-    embed.add_field(
-        name="📊 İstifadə Sayı", value=f"`{uses_count} dəfə`", inline=True
-    )
-    embed.add_field(
-        name="👑 Server Sahib(e)si", value=f"{guild.owner.mention}", inline=True
-    )
-
-    if guild.banner:
-      embed.set_image(url=guild.banner.url)
-
-    if guild.icon:
-      embed.set_thumbnail(url=guild.icon.url)
-
-    embed.set_footer(text=f"{guild.name} | 88x Security Systems")
+    embed.add_field(name="📊 İstifadə", value=f"`{uses_count}`", inline=True)
+    embed.add_field(name="👑 Sahib", value=f"{guild.owner.mention}", inline=True)
+    embed.set_footer(text="exlaqsiz Systems")
     await ctx.send(embed=embed, delete_after=20)
   except:
     pass
@@ -636,9 +559,7 @@ async def sil_komanda(ctx, limit: int = 5):
   try:
     await ctx.message.delete()
     deleted = await ctx.channel.purge(limit=limit)
-    await ctx.send(
-        f"🧹 **{len(deleted)}** ədəd mesaj təmizləndi.", delete_after=3
-    )
+    await ctx.send(f"🧹 {len(deleted)} mesaj təmizləndi.", delete_after=3)
   except:
     pass
 
@@ -653,7 +574,7 @@ async def siluser(ctx, member: discord.Member, limit: int = 10):
         limit=limit, check=lambda m: m.author.id == member.id
     )
     await ctx.send(
-        f"🧹 **{member.mention}** istifadəçisinin **{len(deleted)}** ədəd mesajı"
+        f"🧹 {member.mention} istifadəçisinin {len(deleted)} mesajı"
         " təmizləndi.",
         delete_after=3,
     )
@@ -668,16 +589,9 @@ async def slowmode(ctx, seconds: int = 0):
   try:
     await ctx.message.delete()
     await ctx.channel.edit(slowmode_delay=seconds)
-    if seconds == 0:
-      await ctx.send(
-          "🟢 Bu kanalda yavaş rejim **söndürüldü**.", delete_after=3
-      )
-    else:
-      await ctx.send(
-          f"🐢 Bu kanalda yavaş rejim **{seconds} saniyə** olaraq"
-          " tənzimləndi.",
-          delete_after=5,
-      )
+    await ctx.send(
+        f"🐢 Yavaş rejim {seconds} saniyə olaraq tənzimləndi.", delete_after=5
+    )
   except:
     pass
 
@@ -687,7 +601,7 @@ async def ping(ctx):
   if ctx.author.id != OWNER_ID:
     return
   latency = round(bot.latency * 1000)
-  await ctx.send(f"🏓 Pong! Botun gecikmə sürəti: **{latency}ms**")
+  await ctx.send(f"🏓 Gecikmə: **{latency}ms**")
 
 
 @bot.command(name="serverbilgisi")
@@ -695,16 +609,9 @@ async def serverbilgisi(ctx):
   if ctx.author.id != OWNER_ID:
     return
   guild = ctx.guild
-  embed = discord.Embed(title=f"📊 {guild.name} - Server Məlumatı", color=0x2b2d31)
-  embed.add_field(
-      name="👑 Server Sahib(e)si", value=f"{guild.owner}", inline=True
-  )
-  embed.add_field(name="👥 Üzv Sayı", value=f"{guild.member_count}", inline=True)
-  embed.add_field(
-      name="📅 Yaradılma Tarixi",
-      value=guild.created_at.strftime("%d.%m.%Y"),
-      inline=True,
-  )
+  embed = discord.Embed(title=f"📊 {guild.name} - Məlumat", color=0x2b2d31)
+  embed.add_field(name="👑 Sahib", value=f"{guild.owner}", inline=True)
+  embed.add_field(name="👥 Üzv", value=f"{guild.member_count}", inline=True)
   await ctx.send(embed=embed)
 
 
@@ -714,9 +621,7 @@ async def ban(ctx, member: discord.Member, *, reason="Göstərilməyib"):
     return
   try:
     await member.ban(reason=reason)
-    await ctx.send(
-        f"🔨 **{member}** serverdən uzaqlaşdırıldı. Səbəb: **{reason}**"
-    )
+    await ctx.send(f"🔨 {member} banlandı. Səbəb: {reason}")
   except:
     pass
 
@@ -727,7 +632,7 @@ async def kick(ctx, member: discord.Member, *, reason="Göstərilməyib"):
     return
   try:
     await member.kick(reason=reason)
-    await ctx.send(f"👢 **{member}** serverdən qovuldu. Səbəb: **{reason}**")
+    await ctx.send(f"👢 {member} qovuldu. Səbəb: {reason}")
   except:
     pass
 
@@ -738,4 +643,5 @@ if __name__ == "__main__":
   if token:
     bot.run(token)
   else:
-    print("XƏTA: DISCORD_TOKEN tapılmadı!")
+    print("XƏTA: Token tapılmadı!")
+    
