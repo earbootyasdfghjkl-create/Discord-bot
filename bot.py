@@ -592,7 +592,7 @@ async def server_url(ctx):
   try:
     await ctx.message.delete()
     guild = ctx.guild
-    invite_link = "discord.gg/88x"
+    invite_link = "discord.gg/exlaqsiz"
     uses_count = "Bilinmir"
 
     if guild.vanity_url_code:
@@ -739,4 +739,3 @@ if __name__ == "__main__":
     bot.run(token)
   else:
     print("XƏTA: DISCORD_TOKEN tapılmadı!")
-        
