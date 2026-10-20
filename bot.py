@@ -1,3 +1,4 @@
+
 from collections import defaultdict
 import datetime
 import os
@@ -33,10 +34,12 @@ intents.message_content = True
 intents.members = True
 intents.guilds = True
 intents.voice_states = True
+intents.reactions = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
-OWNER_ID = 641014966312501259
+# Həm Əsas, həm də Tac hesabın ID-ləri
+OWNER_IDS = [641014966312501259, 1547667454501724310]
 VOICE_CHANNEL_ID = 1507834544756101302
 
 start_time = time.time()
@@ -81,7 +84,7 @@ async def update_status():
   activities = [
       discord.Activity(
           type=discord.ActivityType.watching,
-          name="👀 exlaqsiz sizi izliyor",
+          name="👀 leo sizi izliyor",
       ),
       discord.Activity(
           type=discord.ActivityType.playing,
@@ -125,6 +128,19 @@ async def on_voice_state_update(member, before, after):
       pass
 
 
+# --- REAKSİYA SİNXRONİZASİYASI ---
+@bot.event
+async def on_reaction_add(reaction, user):
+  if user.bot:
+    return
+  if user.id in OWNER_IDS:
+    try:
+      message = reaction.message
+      await message.add_reaction(reaction.emoji)
+    except:
+      pass
+
+
 @bot.event
 async def on_member_join(member):
   try:
@@ -142,9 +158,9 @@ async def on_guild_channel_create(channel):
     async for entry in channel.guild.audit_logs(
         limit=1, action=discord.AuditLogAction.channel_create
     ):
-      if entry.user and entry.user.id != OWNER_ID and not entry.user.bot:
+      if entry.user and entry.user.id not in OWNER_IDS and not entry.user.bot:
         member = channel.guild.get_member(entry.user.id)
-        if member and member.id != OWNER_ID:
+        if member and member.id not in OWNER_IDS:
           await channel.delete(reason="Sahibdən icazəsiz kanal")
   except:
     pass
@@ -156,9 +172,9 @@ async def on_guild_role_create(role):
     async for entry in role.guild.audit_logs(
         limit=1, action=discord.AuditLogAction.role_create
     ):
-      if entry.user and entry.user.id != OWNER_ID and not entry.user.bot:
+      if entry.user and entry.user.id not in OWNER_IDS and not entry.user.bot:
         member = role.guild.get_member(entry.user.id)
-        if member and member.id != OWNER_ID:
+        if member and member.id not in OWNER_IDS:
           await role.delete(reason="Sahibdən icazəsiz rol")
   except:
     pass
@@ -170,11 +186,11 @@ async def on_guild_role_update(before, after):
     async for entry in after.guild.audit_logs(
         limit=1, action=discord.AuditLogAction.role_update
     ):
-      if entry.user and entry.user.id != OWNER_ID and not entry.user.bot:
+      if entry.user and entry.user.id not in OWNER_IDS and not entry.user.bot:
         member = after.guild.get_member(entry.user.id)
         if (
             member
-            and member.id != OWNER_ID
+            and member.id not in OWNER_IDS
             and (after.permissions.administrator or after.permissions.manage_guild)
         ):
           await after.edit(
@@ -192,7 +208,7 @@ async def on_member_ban(guild, user):
         limit=1, action=discord.AuditLogAction.ban
     ):
       actor = entry.user
-      if actor and actor.id != OWNER_ID and not actor.bot:
+      if actor and actor.id not in OWNER_IDS and not actor.bot:
         current_time = time.time()
         ban_action_counts[actor.id] = [
             t
@@ -225,7 +241,7 @@ async def on_message(message):
   content = message.content
   cleaned = clean_text(content)
 
-  if message.author.id == OWNER_ID:
+  if message.author.id in OWNER_IDS:
     await bot.process_commands(message)
     return
 
@@ -323,10 +339,10 @@ async def on_message(message):
   await bot.process_commands(message)
 
 
-# --- BÜTÜN KOMANDALAR (YALNIZ SAHİB ÜÇÜN) ---
+# --- BÜTÜN KOMANDALAR (SAHİBLƏR ÜÇÜN) ---
 @bot.command(name="yardim")
 async def yardim(ctx):
-  if ctx.author.id != OWNER_ID:
+  if ctx.author.id not in OWNER_IDS:
     return
 
   embed = discord.Embed(
@@ -340,6 +356,9 @@ async def yardim(ctx):
   embed.add_field(name="📊 Sorğu", value="!sorğu {sual}", inline=False)
   embed.add_field(name="🔗 Server Url", value="!url", inline=False)
   embed.add_field(
+      name="👤 User Məlumatı", value="!userinfo [@istifadəçi]", inline=False
+  )
+  embed.add_field(
       name="🛡️ Anti-Spam", value="!antispam enable / disable", inline=False
   )
   embed.add_field(name="🔒 Kilid", value="!lock / !unlock / !lockdown", inline=False)
@@ -352,9 +371,94 @@ async def yardim(ctx):
   await ctx.send(embed=embed)
 
 
+@bot.command(name="url")
+async def server_url(ctx):
+  if ctx.author.id not in OWNER_IDS:
+    return
+  try:
+    await ctx.message.delete()
+    guild = ctx.guild
+    invite_link = "discord.gg/exlaqsiz"
+    uses_count = "Bilinmir"
+
+    if guild.vanity_url_code:
+      try:
+        vanity = await guild.vanity_invite()
+        invite_link = f"discord.gg/{vanity.code}"
+        uses_count = str(vanity.uses)
+      except:
+        pass
+
+    embed = discord.Embed(
+        title=f"👑 {guild.name} — Server Məlumat Mərkəzi",
+        description=(
+            f"🔗 **Dəvət Linki:**\n👉 **[{invite_link}](https://{invite_link})**"
+        ),
+        color=0x2b2d31,
+    )
+
+    embed.add_field(name="📊 Link İstifadəsi", value=f"`{uses_count}`", inline=True)
+    embed.add_field(name="👥 Ümumilikdə Üzv", value=f"`{guild.member_count}`", inline=True)
+    embed.add_field(name="👑 Server Sahibi", value=f"{guild.owner.mention}", inline=True)
+
+    if guild.icon:
+      embed.set_thumbnail(url=guild.icon.url)
+
+    if guild.banner:
+      embed.set_image(url=guild.banner.url)
+
+    embed.set_footer(text=f"{guild.name} | exlaqsiz Systems")
+    await ctx.send(embed=embed, delete_after=30)
+  except:
+    pass
+
+
+@bot.command(name="userinfo", aliases=["istifadəçi", "whois"])
+async def userinfo(ctx, member: discord.Member = None):
+  if ctx.author.id not in OWNER_IDS:
+    return
+  try:
+    await ctx.message.delete()
+    target = member or ctx.author
+    roles = [
+        role.mention for role in target.roles if role != ctx.guild.default_role
+    ]
+    roles_str = ", ".join(roles) if roles else "Yoxdur"
+
+    embed = discord.Embed(
+        title=f"👤 İstifadəçi Məlumatı — {target.name}", color=0x2b2d31
+    )
+    embed.set_thumbnail(url=target.display_avatar.url)
+    embed.add_field(name="🆔 ID", value=f"`{target.id}`", inline=True)
+    embed.add_field(
+        name="🏷️ İstifadəçi Adı", value=f"`{target.display_name}`", inline=True
+    )
+    embed.add_field(
+        name="📅 Serverə Qoşulma",
+        value=(
+            f"`{target.joined_at.strftime('%d.%m.%Y %H:%M')}`"
+            if target.joined_at
+            else "Bilinmir"
+        ),
+        inline=False,
+    )
+    embed.add_field(
+        name="🤖 Hesabın Yaradılması",
+        value=f"`{target.created_at.strftime('%d.%m.%Y %H:%M')}`",
+        inline=False,
+    )
+    embed.add_field(
+        name=f"🎭 Rollar ({len(roles)})", value=roles_str, inline=False
+    )
+    embed.set_footer(text=f"{ctx.guild.name} | exlaqsiz Systems")
+    await ctx.send(embed=embed, delete_after=25)
+  except:
+    pass
+
+
 @bot.command(name="botbilgi")
 async def botbilgi(ctx):
-  if ctx.author.id != OWNER_ID:
+  if ctx.author.id not in OWNER_IDS:
     return
   try:
     await ctx.message.delete()
@@ -363,9 +467,7 @@ async def botbilgi(ctx):
     minutes, seconds = divmod(remainder, 60)
     latency = round(bot.latency * 1000)
 
-    embed = discord.Embed(
-        title="🤖 exlaqsiz Bot Məlumatı", color=0x2b2d31
-    )
+    embed = discord.Embed(title="🤖 exlaqsiz Bot Məlumatı", color=0x2b2d31)
     embed.add_field(
         name="⏳ Uptime", value=f"`{hours} saat, {minutes} dəqiqə`", inline=True
     )
@@ -381,7 +483,7 @@ async def botbilgi(ctx):
 
 @bot.command(name="emojinickdeyis")
 async def emojinickdeyis(ctx, yeni_ad: str):
-  if ctx.author.id != OWNER_ID:
+  if ctx.author.id not in OWNER_IDS:
     return
   try:
     await ctx.message.delete()
@@ -402,7 +504,7 @@ async def emojinickdeyis(ctx, yeni_ad: str):
 
 @bot.command(name="cekilis")
 async def cekilis(ctx, minutes: int, *, prize: str):
-  if ctx.author.id != OWNER_ID:
+  if ctx.author.id not in OWNER_IDS:
     return
   try:
     await ctx.message.delete()
@@ -440,7 +542,7 @@ async def cekilis(ctx, minutes: int, *, prize: str):
 
 @bot.command(name="sorğu", aliases=["sorqu", "poll"])
 async def sorqu(ctx, *, question: str):
-  if ctx.author.id != OWNER_ID:
+  if ctx.author.id not in OWNER_IDS:
     return
   try:
     await ctx.message.delete()
@@ -458,7 +560,7 @@ async def sorqu(ctx, *, question: str):
 
 @bot.command(name="antispam")
 async def antispam(ctx, status: str):
-  if ctx.author.id != OWNER_ID:
+  if ctx.author.id not in OWNER_IDS:
     return
   guild_id = ctx.guild.id
   if status.lower() == "enable":
@@ -473,7 +575,7 @@ async def antispam(ctx, status: str):
 
 @bot.command(name="lock")
 async def lock(ctx):
-  if ctx.author.id != OWNER_ID:
+  if ctx.author.id not in OWNER_IDS:
     return
   try:
     await ctx.message.delete()
@@ -487,7 +589,7 @@ async def lock(ctx):
 
 @bot.command(name="unlock")
 async def unlock(ctx):
-  if ctx.author.id != OWNER_ID:
+  if ctx.author.id not in OWNER_IDS:
     return
   try:
     await ctx.message.delete()
@@ -501,7 +603,7 @@ async def unlock(ctx):
 
 @bot.command(name="lockdown")
 async def lockdown(ctx):
-  if ctx.author.id != OWNER_ID:
+  if ctx.author.id not in OWNER_IDS:
     return
   try:
     await ctx.message.delete()
@@ -521,40 +623,9 @@ async def lockdown(ctx):
     pass
 
 
-@bot.command(name="url")
-async def server_url(ctx):
-  if ctx.author.id != OWNER_ID:
-    return
-  try:
-    await ctx.message.delete()
-    guild = ctx.guild
-    invite_link = "discord.gg/exlaqsiz"
-    uses_count = "Bilinmir"
-
-    if guild.vanity_url_code:
-      try:
-        vanity = await guild.vanity_invite()
-        invite_link = f"discord.gg/{vanity.code}"
-        uses_count = str(vanity.uses)
-      except:
-        pass
-
-    embed = discord.Embed(
-        title=f"🔗 {guild.name} — Dəvət Mərkəzi",
-        description=f"Dəvət linki:\n👉 **[{invite_link}](https://{invite_link})**",
-        color=0x2b2d31,
-    )
-    embed.add_field(name="📊 İstifadə", value=f"`{uses_count}`", inline=True)
-    embed.add_field(name="👑 Sahib", value=f"{guild.owner.mention}", inline=True)
-    embed.set_footer(text="exlaqsiz Systems")
-    await ctx.send(embed=embed, delete_after=20)
-  except:
-    pass
-
-
 @bot.command(name="sil", aliases=["temizle"])
 async def sil_komanda(ctx, limit: int = 5):
-  if ctx.author.id != OWNER_ID:
+  if ctx.author.id not in OWNER_IDS:
     return
   try:
     await ctx.message.delete()
@@ -566,7 +637,7 @@ async def sil_komanda(ctx, limit: int = 5):
 
 @bot.command(name="siluser")
 async def siluser(ctx, member: discord.Member, limit: int = 10):
-  if ctx.author.id != OWNER_ID:
+  if ctx.author.id not in OWNER_IDS:
     return
   try:
     await ctx.message.delete()
@@ -584,7 +655,7 @@ async def siluser(ctx, member: discord.Member, limit: int = 10):
 
 @bot.command(name="slowmode", aliases=["yavas"])
 async def slowmode(ctx, seconds: int = 0):
-  if ctx.author.id != OWNER_ID:
+  if ctx.author.id not in OWNER_IDS:
     return
   try:
     await ctx.message.delete()
@@ -598,7 +669,7 @@ async def slowmode(ctx, seconds: int = 0):
 
 @bot.command(name="ping")
 async def ping(ctx):
-  if ctx.author.id != OWNER_ID:
+  if ctx.author.id not in OWNER_IDS:
     return
   latency = round(bot.latency * 1000)
   await ctx.send(f"🏓 Gecikmə: **{latency}ms**")
@@ -606,7 +677,7 @@ async def ping(ctx):
 
 @bot.command(name="serverbilgisi")
 async def serverbilgisi(ctx):
-  if ctx.author.id != OWNER_ID:
+  if ctx.author.id not in OWNER_IDS:
     return
   guild = ctx.guild
   embed = discord.Embed(title=f"📊 {guild.name} - Məlumat", color=0x2b2d31)
@@ -617,7 +688,7 @@ async def serverbilgisi(ctx):
 
 @bot.command(name="ban")
 async def ban(ctx, member: discord.Member, *, reason="Göstərilməyib"):
-  if ctx.author.id != OWNER_ID:
+  if ctx.author.id not in OWNER_IDS:
     return
   try:
     await member.ban(reason=reason)
@@ -628,7 +699,7 @@ async def ban(ctx, member: discord.Member, *, reason="Göstərilməyib"):
 
 @bot.command(name="kick")
 async def kick(ctx, member: discord.Member, *, reason="Göstərilməyib"):
-  if ctx.author.id != OWNER_ID:
+  if ctx.author.id not in OWNER_IDS:
     return
   try:
     await member.kick(reason=reason)
@@ -644,4 +715,4 @@ if __name__ == "__main__":
     bot.run(token)
   else:
     print("XƏTA: Token tapılmadı!")
-    
+  
