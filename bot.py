@@ -56,6 +56,21 @@ repeat_warnings = defaultdict(int)
 TIME_WINDOW = 15
 LIMIT = 5
 
+# --- GÜNLÜK HƏRTƏRƏFLİ LOGLAMA VƏ YADDAŞ ---
+daily_logs = []
+
+
+async def add_daily_log(guild, text):
+  timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+  log_entry = f"[{timestamp}] {text}"
+  daily_logs.append(log_entry)
+  try:
+    log_channel = guild.get_channel(LOG_CHANNEL_ID)
+    if log_channel:
+      await log_channel.send(f"```{log_entry}```")
+  except:
+    pass
+
 
 def clean_text(text):
   text = text.lower()
@@ -118,8 +133,53 @@ async def on_ready():
       pass
 
 
+# --- HƏRTƏRƏFLİ LOG EVENTLƏRİ ---
+@bot.event
+async def on_message_delete(message):
+  if message.author.bot or not message.guild:
+    return
+  if message.author.id in OWNER_IDS:
+    return
+  text = f"🗑️ MESAJ SİLİNDİ | Yazar: {message.author} | Kanal: #{message.channel.name} | Məzmun: {message.content or 'Şəkil/Embed'}"
+  await add_daily_log(message.guild, text)
+
+
+@bot.event
+async def on_message_edit(before, after):
+  if before.author.bot or not before.guild:
+    return
+  if before.author.id in OWNER_IDS:
+    return
+  if before.content == after.content:
+    return
+  text = f"✏️ MESAJ DƏYİŞDİRİLDİ | Yazar: {before.author} | Kanal: #{before.channel.name} | Köhnə: {before.content} | Yeni: {after.content}"
+  await add_daily_log(before.guild, text)
+
+
+@bot.event
+async def on_member_join(member):
+  text = f"📥 ÜZV QOŞULDU | {member} (ID: {member.id})"
+  await add_daily_log(member.guild, text)
+  try:
+    now = discord.utils.utcnow()
+    account_age = (now - member.created_at).total_seconds()
+    if account_age < 86400 and not member.avatar:
+      await member.kick(reason="VODKA Anti-Bot: Şübhəli hesab")
+      await add_daily_log(member.guild, f"👢 Şübhəli Hesab Qovuldu | {member}")
+  except:
+    pass
+
+
+@bot.event
+async def on_member_remove(member):
+  text = f"📤 ÜZV ÇIXDI | {member} (ID: {member.id})"
+  await add_daily_log(member.guild, text)
+
+
 @bot.event
 async def on_voice_state_update(member, before, after):
+  if member.bot:
+    return
   if member.id == bot.user.id and after.channel is None:
     try:
       channel = bot.get_channel(VOICE_CHANNEL_ID)
@@ -127,14 +187,85 @@ async def on_voice_state_update(member, before, after):
         await channel.connect(reconnect=True, self_deaf=True)
     except:
       pass
+    return
+
+  if before.channel != after.channel:
+    if before.channel is None:
+      text = f"🔊 SƏSƏ GİRDİ | {member} -> #{after.channel.name}"
+      await add_daily_log(member.guild, text)
+    elif after.channel is None:
+      text = f"🔇 SƏSDƏN ÇIXDI | {member} -> #{before.channel.name}"
+      await add_daily_log(member.guild, text)
+    else:
+      text = f"🔀 SƏS DƏYİŞDİ | {member} : #{before.channel.name} ➔ #{after.channel.name}"
+      await add_daily_log(member.guild, text)
 
 
-# --- LOG KANALINA MESAJ GÖNDƏRMƏ KÖMƏKÇİSİ ---
-async def send_log(guild, embed):
+@bot.event
+async def on_guild_channel_create(channel):
   try:
-    log_channel = guild.get_channel(LOG_CHANNEL_ID)
-    if log_channel:
-      await log_channel.send(embed=embed)
+    async for entry in channel.guild.audit_logs(
+        limit=1, action=discord.AuditLogAction.channel_create
+    ):
+      actor = entry.user if entry.user else "Naməlum"
+      text = f"📁 KANAL AÇILDI | #{channel.name} | Edən: {actor}"
+      await add_daily_log(channel.guild, text)
+      if actor and actor.id not in OWNER_IDS and not actor.bot:
+        await channel.delete(reason="Sahibdən icazəsiz kanal")
+  except:
+    pass
+
+
+@bot.event
+async def on_guild_channel_delete(channel):
+  try:
+    async for entry in channel.guild.audit_logs(
+        limit=1, action=discord.AuditLogAction.channel_delete
+    ):
+      actor = entry.user if entry.user else "Naməlum"
+      text = f"❌ KANAL SİLİNDİ | #{channel.name} | Edən: {actor}"
+      await add_daily_log(channel.guild, text)
+  except:
+    pass
+
+
+@bot.event
+async def on_guild_role_create(role):
+  try:
+    async for entry in role.guild.audit_logs(
+        limit=1, action=discord.AuditLogAction.role_create
+    ):
+      actor = entry.user if entry.user else "Naməlum"
+      text = f"🎭 ROL AÇILDI | {role.name} | Edən: {actor}"
+      await add_daily_log(role.guild, text)
+      if actor and actor.id not in OWNER_IDS and not actor.bot:
+        await role.delete(reason="Sahibdən icazəsiz rol")
+  except:
+    pass
+
+
+@bot.event
+async def on_guild_role_delete(role):
+  try:
+    async for entry in role.guild.audit_logs(
+        limit=1, action=discord.AuditLogAction.role_delete
+    ):
+      actor = entry.user if entry.user else "Naməlum"
+      text = f"🗑️ ROL SİLİNDİ | {role.name} | Edən: {actor}"
+      await add_daily_log(role.guild, text)
+  except:
+    pass
+
+
+@bot.event
+async def on_member_ban(guild, user):
+  try:
+    async for entry in guild.audit_logs(
+        limit=1, action=discord.AuditLogAction.ban
+    ):
+      actor = entry.user if entry.user else "Naməlum"
+      text = f"🔨 BAN EDİLDİ | Şəxs: {user} | Edən: {actor}"
+      await add_daily_log(guild, text)
   except:
     pass
 
@@ -152,149 +283,7 @@ async def on_reaction_add(reaction, user):
       pass
 
 
-@bot.event
-async def on_member_join(member):
-  try:
-    now = discord.utils.utcnow()
-    account_age = (now - member.created_at).total_seconds()
-    if account_age < 86400 and not member.avatar:
-      await member.kick(reason="VODKA Anti-Bot: Şübhəli hesab")
-  except:
-    pass
-
-
-@bot.event
-async def on_guild_channel_create(channel):
-  try:
-    async for entry in channel.guild.audit_logs(
-        limit=1, action=discord.AuditLogAction.channel_create
-    ):
-      if entry.user and entry.user.id not in OWNER_IDS and not entry.user.bot:
-        member = channel.guild.get_member(entry.user.id)
-        if member and member.id not in OWNER_IDS:
-          await channel.delete(reason="Sahibdən icazəsiz kanal")
-          embed = discord.Embed(
-              title="🚨 Təhlükəsizlik Müdaxiləsi",
-              description=(
-                  f"**İstifadəçi:** {entry.user.mention}\n**Səbəb:** İcazəsiz"
-                  " kanal yaratdı və ləğv edildi."
-              ),
-              color=0xFF0000,
-          )
-          await send_log(channel.guild, embed)
-  except:
-    pass
-
-
-@bot.event
-async def on_guild_role_create(role):
-  try:
-    async for entry in role.guild.audit_logs(
-        limit=1, action=discord.AuditLogAction.role_create
-    ):
-      if entry.user and entry.user.id not in OWNER_IDS and not entry.user.bot:
-        member = role.guild.get_member(entry.user.id)
-        if member and member.id not in OWNER_IDS:
-          await role.delete(reason="Sahibdən icazəsiz rol")
-          embed = discord.Embed(
-              title="🚨 Təhlükəsizlik Müdaxiləsi",
-              description=(
-                  f"**İstifadəçi:** {entry.user.mention}\n**Səbəb:** İcazəsiz"
-                  " rol yaratdı və silindi."
-              ),
-              color=0xFF0000,
-          )
-          await send_log(role.guild, embed)
-  except:
-    pass
-
-
-@bot.event
-async def on_guild_role_update(before, after):
-  try:
-    async for entry in after.guild.audit_logs(
-        limit=1, action=discord.AuditLogAction.role_update
-    ):
-      if entry.user and entry.user.id not in OWNER_IDS and not entry.user.bot:
-        member = after.guild.get_member(entry.user.id)
-        if (
-            member
-            and member.id not in OWNER_IDS
-            and (after.permissions.administrator or after.permissions.manage_guild)
-        ):
-          await after.edit(
-              permissions=before.permissions,
-              reason="İcazəsiz səlahiyyət dəyişikliyi bloklandı!",
-          )
-          embed = discord.Embed(
-              title="🛡️ Anti-Nuke Rol Qoruması",
-              description=(
-                  f"**İstifadəçi:** {entry.user.mention}\n**Rol:**"
-                  f" {after.name}\n**Əməliyyat:** Təhlükəli səlahiyyət"
-                  " verilməyə çalışıldı və geri alındı."
-              ),
-              color=0xFFA500,
-          )
-          await send_log(after.guild, embed)
-  except:
-    pass
-
-
-@bot.event
-async def on_member_ban(guild, user):
-  try:
-    async for entry in guild.audit_logs(
-        limit=1, action=discord.AuditLogAction.ban
-    ):
-      actor = entry.user
-      if actor and actor.id not in OWNER_IDS and not actor.bot:
-        current_time = time.time()
-        ban_action_counts[actor.id] = [
-            t
-            for t in ban_action_counts[actor.id]
-            if current_time - t < TIME_WINDOW
-        ]
-        ban_action_counts[actor.id].append(current_time)
-
-        if len(ban_action_counts[actor.id]) >= LIMIT:
-          member = guild.get_member(actor.id)
-          if member:
-            try:
-              await member.ban(reason=f"{guild.name}: Anti-Nuke")
-              embed = discord.Embed(
-                  title="🚨 Anti-Nuke Ban Kilidi",
-                  description=(
-                      f"**Kütləvi ban edən şəxs cəzalandırıldı:**"
-                      f" {actor.mention}"
-                  ),
-                  color=0xFF0000,
-              )
-              await send_log(guild, embed)
-            except:
-              pass
-  except:
-    pass
-
-
-@bot.event
-async def on_message_delete(message):
-  if message.author.bot or not message.guild:
-    return
-  if message.author.id in OWNER_IDS:
-    return
-  embed = discord.Embed(
-      title="🗑️ Mesaj Silindi",
-      description=(
-          f"**Yazar:** {message.author.mention}\n**Kanal:**"
-          f" {message.channel.mention}\n**Məzmun:**"
-          f" `{message.content or 'Şəkil/Embed'}`"
-      ),
-      color=0x2B2D31,
-  )
-  embed.set_footer(text=f"ID: {message.author.id}")
-  await send_log(message.guild, embed)
-
-
+# --- MESAJ NƏZARƏTİ VƏ SPAM ---
 @bot.event
 async def on_message(message):
   if message.author.bot or not message.guild:
@@ -312,7 +301,7 @@ async def on_message(message):
     await bot.process_commands(message)
     return
 
-  # Anti-Mass Mention (Kütləvi etiket qoruması)
+  # Anti-Mass Mention
   if message.mention_everyone or len(message.mentions) > 4:
     try:
       await message.delete()
@@ -326,7 +315,7 @@ async def on_message(message):
     except:
       pass
 
-  # Anti-Token / Zərərli Link Qoruması
+  # Anti-Token / Zərərli Link
   dangerous_patterns = [
       "discord.gift/",
       "free-nitro",
@@ -379,7 +368,7 @@ async def on_message(message):
     except:
       pass
 
-  # --- SPAM QORUMASI VƏ 3 UYARI İLƏ 5 DƏQİQƏLİK TIMEOUT ---
+  # Spam Qoruması
   author_id = message.author.id
   current_time = time.time()
   user_message_counts[author_id] = [
@@ -418,7 +407,50 @@ async def on_message(message):
   await bot.process_commands(message)
 
 
-# --- BÜTÜN KOMANDALAR (SAHİBLƏR ÜÇÜN) ---
+# --- KOMANDALAR ---
+@bot.command(name="olanlar")
+async def olanlar(ctx):
+  if ctx.author.id not in OWNER_IDS:
+    return
+  try:
+    await ctx.message.delete()
+    if not daily_logs:
+      await ctx.send(
+          "📋 Bugün hələ heç bir hərəkət qeydə alınmayıb.", delete_after=10
+      )
+      return
+
+    chunks = []
+    current_chunk = ""
+    for log in daily_logs:
+      if len(current_chunk) + len(log) + 1 > 1900:
+        chunks.append(current_chunk)
+        current_chunk = log + "\n"
+      else:
+        current_chunk += log + "\n"
+    if current_chunk:
+      chunks.append(current_chunk)
+
+    embed = discord.Embed(
+        title="📊 Server Günlük Xülasəsi (Olanlar)",
+        description=f"Cəmi `{len(daily_logs)}` hadisə baş verdi.",
+        color=0x2B2D31,
+        timestamp=datetime.datetime.now(),
+    )
+
+    await ctx.send(embed=embed)
+    for chunk in chunks:
+      await ctx.send(f"```{chunk}```")
+
+    daily_logs.clear()
+    await ctx.send(
+        "🔄 Yaddaş sıfırlandı. Yeni hadisələr izlənilməyə başlandı.",
+        delete_after=5,
+    )
+  except Exception as e:
+    await ctx.send(f"Xəta: {e}", delete_after=5)
+
+
 @bot.command(name="yardim")
 async def yardim(ctx):
   if ctx.author.id not in OWNER_IDS:
@@ -434,6 +466,7 @@ async def yardim(ctx):
   )
   embed.add_field(name="📊 Sorğu", value="!sorğu {sual}", inline=False)
   embed.add_field(name="🔗 Server Url", value="!url", inline=False)
+  embed.add_field(name="📋 Olanlar", value="!olanlar", inline=False)
   embed.add_field(
       name="👤 User Məlumatı", value="!userinfo [@istifadəçi]", inline=False
   )
@@ -482,7 +515,6 @@ async def server_url(ctx):
 
     if guild.icon:
       embed.set_thumbnail(url=guild.icon.url)
-
     if guild.banner:
       embed.set_image(url=guild.banner.url)
 
@@ -713,6 +745,7 @@ async def sil_komanda(ctx, limit: int = 5):
   except:
     pass
 
+
 @bot.command(name="siluser")
 async def siluser(ctx, member: discord.Member, limit: int = 10):
   if ctx.author.id not in OWNER_IDS:
@@ -794,3 +827,5 @@ if __name__ == "__main__":
   else:
     print("XƏTA: Token tapılmadı!")
     
+
+
