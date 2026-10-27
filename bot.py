@@ -1,4 +1,3 @@
-
 from collections import defaultdict
 import datetime
 import os
@@ -35,12 +34,15 @@ intents.members = True
 intents.guilds = True
 intents.voice_states = True
 intents.reactions = True
+intents.moderation = True
+intents.audit_log = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
 # Həm Əsas, həm də Tac hesabın ID-ləri
 OWNER_IDS = [641014966312501259, 1547667454501724310]
 VOICE_CHANNEL_ID = 1507834544756101302
+LOG_CHANNEL_ID = 1507883975522128003
 
 start_time = time.time()
 
@@ -84,11 +86,11 @@ async def update_status():
   activities = [
       discord.Activity(
           type=discord.ActivityType.watching,
-          name="👀 leo sizi izliyor",
+          name="👀 jett sizi izliyor",
       ),
       discord.Activity(
           type=discord.ActivityType.playing,
-          name="🛡️ exlaqsiz Security",
+          name="🛡️ VODKA Security",
       ),
       discord.Activity(
           type=discord.ActivityType.watching, name=f"🏓 Ping: {latency}ms"
@@ -103,7 +105,7 @@ async def update_status():
 # --- BOT HAZIR OLDUQDA ---
 @bot.event
 async def on_ready():
-  print(f"exlaqsiz Bot tam aktivdir: {bot.user}")
+  print(f"VODKA Bot tam aktivdir: {bot.user}")
 
   if not update_status.is_running():
     update_status.start()
@@ -128,6 +130,16 @@ async def on_voice_state_update(member, before, after):
       pass
 
 
+# --- LOG KANALINA MESAJ GÖNDƏRMƏ KÖMƏKÇİSİ ---
+async def send_log(guild, embed):
+  try:
+    log_channel = guild.get_channel(LOG_CHANNEL_ID)
+    if log_channel:
+      await log_channel.send(embed=embed)
+  except:
+    pass
+
+
 # --- REAKSİYA SİNXRONİZASİYASI ---
 @bot.event
 async def on_reaction_add(reaction, user):
@@ -147,7 +159,7 @@ async def on_member_join(member):
     now = discord.utils.utcnow()
     account_age = (now - member.created_at).total_seconds()
     if account_age < 86400 and not member.avatar:
-      await member.kick(reason="exlaqsiz Anti-Bot: Şübhəli hesab")
+      await member.kick(reason="VODKA Anti-Bot: Şübhəli hesab")
   except:
     pass
 
@@ -162,6 +174,15 @@ async def on_guild_channel_create(channel):
         member = channel.guild.get_member(entry.user.id)
         if member and member.id not in OWNER_IDS:
           await channel.delete(reason="Sahibdən icazəsiz kanal")
+          embed = discord.Embed(
+              title="🚨 Təhlükəsizlik Müdaxiləsi",
+              description=(
+                  f"**İstifadəçi:** {entry.user.mention}\n**Səbəb:** İcazəsiz"
+                  " kanal yaratdı və ləğv edildi."
+              ),
+              color=0xFF0000,
+          )
+          await send_log(channel.guild, embed)
   except:
     pass
 
@@ -176,6 +197,15 @@ async def on_guild_role_create(role):
         member = role.guild.get_member(entry.user.id)
         if member and member.id not in OWNER_IDS:
           await role.delete(reason="Sahibdən icazəsiz rol")
+          embed = discord.Embed(
+              title="🚨 Təhlükəsizlik Müdaxiləsi",
+              description=(
+                  f"**İstifadəçi:** {entry.user.mention}\n**Səbəb:** İcazəsiz"
+                  " rol yaratdı və silindi."
+              ),
+              color=0xFF0000,
+          )
+          await send_log(role.guild, embed)
   except:
     pass
 
@@ -197,6 +227,16 @@ async def on_guild_role_update(before, after):
               permissions=before.permissions,
               reason="İcazəsiz səlahiyyət dəyişikliyi bloklandı!",
           )
+          embed = discord.Embed(
+              title="🛡️ Anti-Nuke Rol Qoruması",
+              description=(
+                  f"**İstifadəçi:** {entry.user.mention}\n**Rol:**"
+                  f" {after.name}\n**Əməliyyat:** Təhlükəli səlahiyyət"
+                  " verilməyə çalışıldı və geri alındı."
+              ),
+              color=0xFFA500,
+          )
+          await send_log(after.guild, embed)
   except:
     pass
 
@@ -222,10 +262,38 @@ async def on_member_ban(guild, user):
           if member:
             try:
               await member.ban(reason=f"{guild.name}: Anti-Nuke")
+              embed = discord.Embed(
+                  title="🚨 Anti-Nuke Ban Kilidi",
+                  description=(
+                      f"**Kütləvi ban edən şəxs cəzalandırıldı:**"
+                      f" {actor.mention}"
+                  ),
+                  color=0xFF0000,
+              )
+              await send_log(guild, embed)
             except:
               pass
   except:
     pass
+
+
+@bot.event
+async def on_message_delete(message):
+  if message.author.bot or not message.guild:
+    return
+  if message.author.id in OWNER_IDS:
+    return
+  embed = discord.Embed(
+      title="🗑️ Mesaj Silindi",
+      description=(
+          f"**Yazar:** {message.author.mention}\n**Kanal:**"
+          f" {message.channel.mention}\n**Məzmun:**"
+          f" `{message.content or 'Şəkil/Embed'}`"
+      ),
+      color=0x2B2D31,
+  )
+  embed.set_footer(text=f"ID: {message.author.id}")
+  await send_log(message.guild, embed)
 
 
 @bot.event
@@ -245,38 +313,51 @@ async def on_message(message):
     await bot.process_commands(message)
     return
 
+  # Anti-Mass Mention (Kütləvi etiket qoruması)
+  if message.mention_everyone or len(message.mentions) > 4:
+    try:
+      await message.delete()
+      until = discord.utils.utcnow() + datetime.timedelta(hours=1)
+      await message.author.timeout(until, reason="Kütləvi etiketləmə (Mass Mention)")
+      warn_msg = await message.channel.send(
+          f"{message.author.mention} chatı kirletme oqlm [uyarı 3]"
+      )
+      await warn_msg.delete(delay=5)
+      return
+    except:
+      pass
+
+  # Anti-Token / Zərərli Link Qoruması
+  dangerous_patterns = [
+      "discord.gift/",
+      "free-nitro",
+      "steam-nitro",
+      "nitro",
+      "discord.com/api/webhooks",
+      "grabber",
+      "token",
+  ]
+  if any(pattern in cleaned for pattern in dangerous_patterns):
+    try:
+      await message.delete()
+      until = discord.utils.utcnow() + datetime.timedelta(days=1)
+      await message.author.timeout(
+          until, reason="Zərərli Link / Token Grabber"
+      )
+      warn_msg = await message.channel.send(
+          f"{message.author.mention} chatı kirletme oqlm"
+      )
+      await warn_msg.delete(delay=5)
+      return
+    except:
+      pass
+
   emoji_count = len(re.findall(r"<a?:\w+:\d+>", content))
   if emoji_count > 6:
     try:
       await message.delete()
       warn_msg = await message.channel.send(
-          f"{message.author.mention}, emoji spam etmək qadağandır!"
-      )
-      await warn_msg.delete(delay=5)
-      return
-    except:
-      pass
-
-  dangerous_patterns = ["discord.gift/", "free-nitro", "steam-nitro", "nitro"]
-  if any(pattern in cleaned for pattern in dangerous_patterns):
-    try:
-      await message.delete()
-      until = discord.utils.utcnow() + datetime.timedelta(minutes=1)
-      await message.author.timeout(until, reason="Zərərli Link")
-      warn_msg = await message.channel.send(
-          f"{message.author.mention}, şübhəli link paylaşdığı üçün timeout"
-          " aldı!"
-      )
-      await warn_msg.delete(delay=5)
-      return
-    except:
-      pass
-
-  if message.mention_everyone or len(message.mentions) > 4:
-    try:
-      await message.delete()
-      warn_msg = await message.channel.send(
-          f"{message.author.mention}, kütləvi etiketləmə qadağandır!"
+          f"{message.author.mention} chatı kirletme oqlm [uyarı 1]"
       )
       await warn_msg.delete(delay=5)
       return
@@ -294,13 +375,14 @@ async def on_message(message):
     try:
       await message.delete()
       warn_msg = await message.channel.send(
-          f"{message.author.mention}, reklam etmək qadağandır!"
+          f"{message.author.mention} chatı kirletme oqlm"
       )
       await warn_msg.delete(delay=5)
       return
     except:
       pass
 
+  # --- SPAM QORUMASI VƏ 3 UYARI İLƏ 5 DƏQİQƏLİK TIMEOUT ---
   author_id = message.author.id
   current_time = time.time()
   user_message_counts[author_id] = [
@@ -316,17 +398,17 @@ async def on_message(message):
 
       if count == 1:
         warn_msg = await message.channel.send(
-            f"{message.author.mention} yavaş yaz [uyarı 1]"
+            f"{message.author.mention} chatı kirletme oqlm [uyarı 1]"
         )
         await warn_msg.delete(delay=5)
       elif count == 2:
         warn_msg = await message.channel.send(
-            f"{message.author.mention} yavaş yaz [uyarı 2]"
+            f"{message.author.mention} chatı kirletme oqlm [uyarı 2]"
         )
         await warn_msg.delete(delay=5)
       elif count >= 3:
         warn_msg = await message.channel.send(
-            f"{message.author.mention} yavaş yaz [uyarı 3]"
+            f"{message.author.mention} chatı kirletme oqlm [uyarı 3]"
         )
         until = discord.utils.utcnow() + datetime.timedelta(minutes=5)
         await message.author.timeout(until, reason="Spam")
@@ -346,9 +428,9 @@ async def yardim(ctx):
     return
 
   embed = discord.Embed(
-      title="🛡️ exlaqsiz Təhlükəsizlik və İdarəetmə",
+      title="🛡️ VODKA Təhlükəsizlik və İdarəetmə",
       description="Serverin nizamını qoruyur.",
-      color=0x2b2d31,
+      color=0x2B2D31,
   )
   embed.add_field(
       name="🎉 Çekiliş", value="!cekilis {dəqiqə} {hədiyyə}", inline=False
@@ -367,7 +449,7 @@ async def yardim(ctx):
       name="⏱️ Digər", value="!slowmode {san} | !ping | !botbilgi", inline=False
   )
   embed.add_field(name="😀 Emojilər", value="!emojinickdeyis {ad}", inline=False)
-  embed.set_footer(text=f"{ctx.guild.name} | exlaqsiz Systems")
+  embed.set_footer(text=f"{ctx.guild.name} | VODKA Systems")
   await ctx.send(embed=embed)
 
 
@@ -378,7 +460,7 @@ async def server_url(ctx):
   try:
     await ctx.message.delete()
     guild = ctx.guild
-    invite_link = "discord.gg/exlaqsiz"
+    invite_link = "discord.gg/VODKA"
     uses_count = "Bilinmir"
 
     if guild.vanity_url_code:
@@ -394,7 +476,7 @@ async def server_url(ctx):
         description=(
             f"🔗 **Dəvət Linki:**\n👉 **[{invite_link}](https://{invite_link})**"
         ),
-        color=0x2b2d31,
+        color=0x2B2D31,
     )
 
     embed.add_field(name="📊 Link İstifadəsi", value=f"`{uses_count}`", inline=True)
@@ -407,7 +489,7 @@ async def server_url(ctx):
     if guild.banner:
       embed.set_image(url=guild.banner.url)
 
-    embed.set_footer(text=f"{guild.name} | exlaqsiz Systems")
+    embed.set_footer(text=f"{guild.name} | VODKA Systems")
     await ctx.send(embed=embed, delete_after=30)
   except:
     pass
@@ -426,7 +508,7 @@ async def userinfo(ctx, member: discord.Member = None):
     roles_str = ", ".join(roles) if roles else "Yoxdur"
 
     embed = discord.Embed(
-        title=f"👤 İstifadəçi Məlumatı — {target.name}", color=0x2b2d31
+        title=f"👤 İstifadəçi Məlumatı — {target.name}", color=0x2B2D31
     )
     embed.set_thumbnail(url=target.display_avatar.url)
     embed.add_field(name="🆔 ID", value=f"`{target.id}`", inline=True)
@@ -450,7 +532,7 @@ async def userinfo(ctx, member: discord.Member = None):
     embed.add_field(
         name=f"🎭 Rollar ({len(roles)})", value=roles_str, inline=False
     )
-    embed.set_footer(text=f"{ctx.guild.name} | exlaqsiz Systems")
+    embed.set_footer(text=f"{ctx.guild.name} | VODKA Systems")
     await ctx.send(embed=embed, delete_after=25)
   except:
     pass
@@ -467,7 +549,7 @@ async def botbilgi(ctx):
     minutes, seconds = divmod(remainder, 60)
     latency = round(bot.latency * 1000)
 
-    embed = discord.Embed(title="🤖 exlaqsiz Bot Məlumatı", color=0x2b2d31)
+    embed = discord.Embed(title="🤖 VODKA Bot Məlumatı", color=0x2B2D31)
     embed.add_field(
         name="⏳ Uptime", value=f"`{hours} saat, {minutes} dəqiqə`", inline=True
     )
@@ -475,7 +557,7 @@ async def botbilgi(ctx):
     embed.add_field(
         name="👥 Server Sayı", value=f"`{len(bot.guilds)} server`", inline=True
     )
-    embed.set_footer(text=f"{ctx.guild.name} | exlaqsiz")
+    embed.set_footer(text=f"{ctx.guild.name} | VODKA")
     await ctx.send(embed=embed, delete_after=15)
   except:
     pass
@@ -513,7 +595,7 @@ async def cekilis(ctx, minutes: int, *, prize: str):
         description=f"Hədiyyə: **{prize}**\nBitmə vaxtı: **{minutes} dəqiqə**",
         color=0xFFD700,
     )
-    embed.set_footer(text="exlaqsiz Systems")
+    embed.set_footer(text="VODKA Systems")
 
     msg = await ctx.send(embed=embed)
     await msg.add_reaction("🎉")
@@ -549,7 +631,7 @@ async def sorqu(ctx, *, question: str):
     embed = discord.Embed(
         title="📊 Səsvermə", description=f"**Sual:** {question}", color=0x00AE86
     )
-    embed.set_footer(text="exlaqsiz Systems")
+    embed.set_footer(text="VODKA Systems")
 
     msg = await ctx.send(embed=embed)
     await msg.add_reaction("👍")
@@ -633,8 +715,6 @@ async def sil_komanda(ctx, limit: int = 5):
     await ctx.send(f"🧹 {len(deleted)} mesaj təmizləndi.", delete_after=3)
   except:
     pass
-
-
 @bot.command(name="siluser")
 async def siluser(ctx, member: discord.Member, limit: int = 10):
   if ctx.author.id not in OWNER_IDS:
@@ -680,7 +760,7 @@ async def serverbilgisi(ctx):
   if ctx.author.id not in OWNER_IDS:
     return
   guild = ctx.guild
-  embed = discord.Embed(title=f"📊 {guild.name} - Məlumat", color=0x2b2d31)
+  embed = discord.Embed(title=f"📊 {guild.name} - Məlumat", color=0x2B2D31)
   embed.add_field(name="👑 Sahib", value=f"{guild.owner}", inline=True)
   embed.add_field(name="👥 Üzv", value=f"{guild.member_count}", inline=True)
   await ctx.send(embed=embed)
@@ -715,4 +795,4 @@ if __name__ == "__main__":
     bot.run(token)
   else:
     print("XƏTA: Token tapılmadı!")
-  
+    
