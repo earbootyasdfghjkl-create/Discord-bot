@@ -35,7 +35,6 @@ intents.guilds = True
 intents.voice_states = True
 intents.reactions = True
 intents.moderation = True
-intents.audit_log = True
 
 bot = commands.Bot(command_prefix="!", intents=intents)
 
@@ -317,8 +316,8 @@ async def on_message(message):
   if message.mention_everyone or len(message.mentions) > 4:
     try:
       await message.delete()
-      until = discord.utils.utcnow() + datetime.timedelta(hours=1)
-      await message.author.timeout(until, reason="Kütləvi etiketləmə (Mass Mention)")
+      until = discord.utils.utcnow() + datetime.timedelta(minutes=5)
+      await message.author.timeout(until, reason="Kütləvi etiketləmə")
       warn_msg = await message.channel.send(
           f"{message.author.mention} chatı kirletme oqlm [uyarı 3]"
       )
@@ -340,12 +339,10 @@ async def on_message(message):
   if any(pattern in cleaned for pattern in dangerous_patterns):
     try:
       await message.delete()
-      until = discord.utils.utcnow() + datetime.timedelta(days=1)
-      await message.author.timeout(
-          until, reason="Zərərli Link / Token Grabber"
-      )
+      until = discord.utils.utcnow() + datetime.timedelta(minutes=5)
+      await message.author.timeout(until, reason="Zərərli Link")
       warn_msg = await message.channel.send(
-          f"{message.author.mention} chatı kirletme oqlm"
+          f"{message.author.mention} chatı kirletme oqlm [uyarı 3]"
       )
       await warn_msg.delete(delay=5)
       return
@@ -375,7 +372,7 @@ async def on_message(message):
     try:
       await message.delete()
       warn_msg = await message.channel.send(
-          f"{message.author.mention} chatı kirletme oqlm"
+          f"{message.author.mention} chatı kirletme oqlm [uyarı 1]"
       )
       await warn_msg.delete(delay=5)
       return
@@ -715,6 +712,7 @@ async def sil_komanda(ctx, limit: int = 5):
     await ctx.send(f"🧹 {len(deleted)} mesaj təmizləndi.", delete_after=3)
   except:
     pass
+
 @bot.command(name="siluser")
 async def siluser(ctx, member: discord.Member, limit: int = 10):
   if ctx.author.id not in OWNER_IDS:
