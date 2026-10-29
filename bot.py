@@ -1,6 +1,7 @@
 from collections import defaultdict
 import datetime
 import os
+import random
 import re
 import time
 from threading import Thread
@@ -15,7 +16,7 @@ app = Flask(__name__)
 
 @app.route("/")
 def home():
-  return "Bot 7/24 Aktivdir!"
+  return "VODKA Bot 7/24 Aktivdir!"
 
 
 def run():
@@ -42,6 +43,10 @@ bot = commands.Bot(command_prefix="!", intents=intents)
 OWNER_IDS = [641014966312501259, 1547667454501724310]
 VOICE_CHANNEL_ID = 1507834544756101302
 LOG_CHANNEL_ID = 1507883975522128003
+
+# Sniper Kanalları
+URL_SNIPER_CHANNEL_ID = 1565484744022560831
+NICK_SNIPER_CHANNEL_ID = 1565484778453737532
 
 start_time = time.time()
 
@@ -99,12 +104,10 @@ async def update_status():
 
   activities = [
       discord.Activity(
-          type=discord.ActivityType.watching,
-          name="👀 jett sizi izliyor",
+          type=discord.ActivityType.watching, name="👀 jett sizi izliyor"
       ),
       discord.Activity(
-          type=discord.ActivityType.playing,
-          name="🛡️ VODKA Security",
+          type=discord.ActivityType.playing, name="🛡️ VODKA Security"
       ),
       discord.Activity(
           type=discord.ActivityType.watching, name=f"🏓 Ping: {latency}ms"
@@ -116,6 +119,65 @@ async def update_status():
     await asyncio.sleep(10)
 
 
+# --- 2L URL & 4L NICK SNIPER (AVTOMATİK ÇƏKMƏ İLƏ) ---
+@tasks.loop(seconds=4.0)
+async def url_sniper_task():
+  try:
+    channel = bot.get_channel(URL_SNIPER_CHANNEL_ID)
+    if channel:
+      guild = channel.guild
+      letters = "abcdefghijklmnopqrstuvwxyz"
+      code1 = random.choice(letters)
+      code2 = random.choice(letters)
+      target_url = f"{code1}{code2}"
+
+      try:
+        await bot.fetch_invite(target_url)
+      except discord.NotFound:
+        # Boşdadır! Avtomatik serverə çəkməyə cəhd edirik
+        try:
+          await guild.edit(
+              vanity_code=target_url,
+              reason="VODKA 2L URL Sniper: Avtomatik çəkildi",
+          )
+          owners_mention = " ".join([f"<@{oid}>" for oid in OWNER_IDS])
+          if channel:
+            await channel.send(
+                f"🎉 {owners_mention} **Uğurla 2L URL çəkildi!** `discord.gg/{target_url}`"
+            )
+        except Exception as e:
+          if channel:
+            await channel.send(
+                f"⚡ **Boşda 2L URL tapıldı amma çəkmək olmadı:** `discord.gg/{target_url}` | Xəta: {e}"
+            )
+      except Exception:
+        pass
+  except:
+    pass
+
+
+@tasks.loop(seconds=5.0)
+async def nick_sniper_task():
+  try:
+    channel = bot.get_channel(NICK_SNIPER_CHANNEL_ID)
+    if channel:
+      sample_4l_nick = "".join(
+          random.choices("abcdefghijklmnopqrstuvwxyz0123456789", k=4)
+      )
+      guild = channel.guild
+      if guild:
+        member_found = discord.utils.get(guild.members, name=sample_4l_nick)
+        if not member_found:
+          owners_mention = " ".join([f"<@{oid}>" for oid in OWNER_IDS])
+          await channel.send(
+              f"🔥 {owners_mention} **4L Nick boşdadır, tez çək!** Nik: `{sample_4l_nick}`"
+          )
+        else:
+          await channel.send(f"`{sample_4l_nick}` doludur.")
+  except:
+    pass
+
+
 # --- BOT HAZIR OLDUQDA ---
 @bot.event
 async def on_ready():
@@ -123,6 +185,12 @@ async def on_ready():
 
   if not update_status.is_running():
     update_status.start()
+
+  if not url_sniper_task.is_running():
+    url_sniper_task.start()
+
+  if not nick_sniper_task.is_running():
+    nick_sniper_task.start()
 
   if not bot.voice_clients:
     try:
@@ -473,8 +541,12 @@ async def yardim(ctx):
   embed.add_field(
       name="🛡️ Anti-Spam", value="!antispam enable / disable", inline=False
   )
-  embed.add_field(name="🔒 Kilid", value="!lock / !unlock / !lockdown", inline=False)
-  embed.add_field(name="🧹 Təmizlik", value="!sil {say} | !siluser", inline=False)
+  embed.add_field(
+      name="🔒 Kilid", value="!lock / !unlock / !lockdown", inline=False
+  )
+  embed.add_field(
+      name="🧹 Təmizlik", value="!sil {say} | !siluser", inline=False
+  )
   embed.add_field(
       name="⏱️ Digər", value="!slowmode {san} | !ping | !botbilgi", inline=False
   )
@@ -510,8 +582,12 @@ async def server_url(ctx):
     )
 
     embed.add_field(name="📊 Link İstifadəsi", value=f"`{uses_count}`", inline=True)
-    embed.add_field(name="👥 Ümumilikdə Üzv", value=f"`{guild.member_count}`", inline=True)
-    embed.add_field(name="👑 Server Sahibi", value=f"{guild.owner.mention}", inline=True)
+    embed.add_field(
+        name="👥 Ümumilikdə Üzv", value=f"`{guild.member_count}`", inline=True
+    )
+    embed.add_field(
+        name="👑 Server Sahibi", value=f"{guild.owner.mention}", inline=True
+    )
 
     if guild.icon:
       embed.set_thumbnail(url=guild.icon.url)
@@ -637,10 +713,7 @@ async def cekilis(ctx, minutes: int, *, prize: str):
       if str(reaction.emoji) == "🎉":
         users = [user async for user in reaction.users() if not user.bot]
         if users:
-          import random
-
           winner = random.choice(users)
-
     if winner:
       await ctx.send(
           f"🏆 Qalib: {winner.mention}! Qazandığın hədiyyə: **{prize}** 🎉"
@@ -725,55 +798,55 @@ async def lockdown(ctx):
       await channel.set_permissions(
           guild.default_role, send_messages=new_status
       )
-
-    if new_status:
-      await ctx.send("🔓 Fövqəladə vəziyyət ləğv olundu.", delete_after=10)
-    else:
-      await ctx.send("🚨 Fövqəladə vəziyyət aktivdir!", delete_after=10)
+    status_text = "kilitləndi" if not new_status else "açıldı"
+    await ctx.send(
+        f"🚨 Bütün kanallar uğurla **{status_text}**!", delete_after=5
+    )
   except:
     pass
 
 
-@bot.command(name="sil", aliases=["temizle"])
-async def sil_komanda(ctx, limit: int = 5):
+@bot.command(name="sil")
+async def sil(ctx, amount: int = 10):
   if ctx.author.id not in OWNER_IDS:
     return
   try:
     await ctx.message.delete()
-    deleted = await ctx.channel.purge(limit=limit)
-    await ctx.send(f"🧹 {len(deleted)} mesaj təmizləndi.", delete_after=3)
+    deleted = await ctx.channel.purge(limit=amount)
+    msg = await ctx.send(f"🧹 `{len(deleted)}` mesaj silindi.")
+    await msg.delete(delay=3)
   except:
     pass
 
 
 @bot.command(name="siluser")
-async def siluser(ctx, member: discord.Member, limit: int = 10):
+async def siluser(ctx, member: discord.Member, amount: int = 20):
   if ctx.author.id not in OWNER_IDS:
     return
   try:
     await ctx.message.delete()
-    deleted = await ctx.channel.purge(
-        limit=limit, check=lambda m: m.author.id == member.id
+
+    def check(m):
+      return m.author == member
+
+    deleted = await ctx.channel.purge(limit=amount, check=check)
+    msg = await ctx.send(
+        f"🧹 {member.mention} istifadəçisinin `{len(deleted)}` mesajı silindi."
     )
-    await ctx.send(
-        f"🧹 {member.mention} istifadəçisinin {len(deleted)} mesajı"
-        " təmizləndi.",
-        delete_after=3,
-    )
+    await msg.delete(delay=3)
   except:
     pass
 
 
-@bot.command(name="slowmode", aliases=["yavas"])
+@bot.command(name="slowmode")
 async def slowmode(ctx, seconds: int = 0):
   if ctx.author.id not in OWNER_IDS:
     return
   try:
     await ctx.message.delete()
     await ctx.channel.edit(slowmode_delay=seconds)
-    await ctx.send(
-        f"🐢 Yavaş rejim {seconds} saniyə olaraq tənzimləndi.", delete_after=5
-    )
+    msg = await ctx.send(f"⏱️ Slowmode `{seconds}` saniyə olaraq ayarlandı.")
+    await msg.delete(delay=3)
   except:
     pass
 
@@ -782,50 +855,19 @@ async def slowmode(ctx, seconds: int = 0):
 async def ping(ctx):
   if ctx.author.id not in OWNER_IDS:
     return
-  latency = round(bot.latency * 1000)
-  await ctx.send(f"🏓 Gecikmə: **{latency}ms**")
-
-
-@bot.command(name="serverbilgisi")
-async def serverbilgisi(ctx):
-  if ctx.author.id not in OWNER_IDS:
-    return
-  guild = ctx.guild
-  embed = discord.Embed(title=f"📊 {guild.name} - Məlumat", color=0x2B2D31)
-  embed.add_field(name="👑 Sahib", value=f"{guild.owner}", inline=True)
-  embed.add_field(name="👥 Üzv", value=f"{guild.member_count}", inline=True)
-  await ctx.send(embed=embed)
-
-
-@bot.command(name="ban")
-async def ban(ctx, member: discord.Member, *, reason="Göstərilməyib"):
-  if ctx.author.id not in OWNER_IDS:
-    return
   try:
-    await member.ban(reason=reason)
-    await ctx.send(f"🔨 {member} banlandı. Səbəb: {reason}")
+    await ctx.message.delete()
+    latency = round(bot.latency * 1000)
+    msg = await ctx.send(f"🏓 Pong! `{latency}ms`")
+    await msg.delete(delay=5)
   except:
     pass
 
 
-@bot.command(name="kick")
-async def kick(ctx, member: discord.Member, *, reason="Göstərilməyib"):
-  if ctx.author.id not in OWNER_IDS:
-    return
-  try:
-    await member.kick(reason=reason)
-    await ctx.send(f"👢 {member} qovuldu. Səbəb: {reason}")
-  except:
-    pass
-
-
-if __name__ == "__main__":
-  keep_alive()
-  token = os.getenv("DISCORD_TOKEN")
-  if token:
-    bot.run(token)
-  else:
-    print("XƏTA: Token tapılmadı!")
+# --- BOTU İŞƏ SAL ---
+keep_alive()
+TOKEN = os.environ.get("TOKEN")
+if TOKEN:
+  bot.run(TOKEN)
     
-
-
+    
